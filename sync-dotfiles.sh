@@ -41,7 +41,20 @@ declare -A FILES=(
     ["$HOME/.config/tmux/tmux.conf"]="dotfiles/.config/tmux/tmux.conf"
     ["$HOME/.config/tmux/tmux.reset.conf"]="dotfiles/.config/tmux/tmux.reset.conf"
     ["$HOME/.config/oh-my-zsh/custom/aliases.zsh"]="dotfiles/.config/oh-my-zsh/custom/aliases.zsh"
+    ["$HOME/.config/oh-my-zsh/custom/evan_robbyrussell_theme.zsh-theme"]="dotfiles/.config/oh-my-zsh/custom/evan_robbyrussell_theme.zsh-theme"
     ["$HOME/.config/ghostty/config"]="dotfiles/.config/ghostty/config"
+    ["$HOME/.config/karabiner.edn"]="dotfiles/.config/karabiner.edn"
+    ["$HOME/.config/nvim/init.lua"]="dotfiles/.config/nvim/init.lua"
+    ["$HOME/.config/nvim/lua/lazy-bootstrap.lua"]="dotfiles/.config/nvim/lua/lazy-bootstrap.lua"
+    ["$HOME/.config/nvim/lua/lazy-plugins.lua"]="dotfiles/.config/nvim/lua/lazy-plugins.lua"
+    ["$HOME/.config/nvim/lua/kickstart/plugins/interestingwords.lua"]="dotfiles/.config/nvim/lua/kickstart/plugins/interestingwords.lua"
+    ["$HOME/.config/nvim/lua/kickstart/plugins/auto-save.lua"]="dotfiles/.config/nvim/lua/kickstart/plugins/auto-save.lua"
+    ["$HOME/.config/nvim/lua/kickstart/plugins/harpoon.lua"]="dotfiles/.config/nvim/lua/kickstart/plugins/harpoon.lua"
+    ["$HOME/.config/nvim/lua/kickstart/plugins/mini.lua"]="dotfiles/.config/nvim/lua/kickstart/plugins/mini.lua"
+    ["$HOME/.config/nvim/lua/kickstart/plugins/nvim-tmux-navigation.lua"]="dotfiles/.config/nvim/lua/kickstart/plugins/nvim-tmux-navigation.lua"
+    ["$HOME/.config/nvim/lua/kickstart/plugins/telescope.lua"]="dotfiles/.config/nvim/lua/kickstart/plugins/telescope.lua"
+    ["$HOME/.config/nvim/lua/options.lua"]="dotfiles/.config/nvim/lua/options.lua"
+    ["$HOME/.config/nvim/lua/keyremaps.lua"]="dotfiles/.config/nvim/lua/keyremaps.lua"
 )
 
 # Sanitization function
