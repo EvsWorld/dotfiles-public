@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/opt/homebrew/bin/bash
 
 # Sync and sanitize dotfiles for public sharing
 # Usage: Run this script from anywhere with: cfg publish-dotfiles
