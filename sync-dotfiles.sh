@@ -37,11 +37,11 @@ echo ""
 
 # Define source files and their destinations
 declare -A FILES=(
-    ["$HOME/.zshrc"]=".zshrc"
-    ["$HOME/.config/tmux/tmux.conf"]=".config/tmux/tmux.conf"
-    ["$HOME/.config/tmux/tmux.reset.conf"]=".config/tmux/tmux.reset.conf"
-    ["$HOME/.config/oh-my-zsh/custom/aliases.zsh"]=".config/oh-my-zsh/custom/aliases.zsh"
-    ["$HOME/.config/ghostty/config"]=".config/ghostty/config"
+    ["$HOME/.zshrc"]="dotfiles/.zshrc"
+    ["$HOME/.config/tmux/tmux.conf"]="dotfiles/.config/tmux/tmux.conf"
+    ["$HOME/.config/tmux/tmux.reset.conf"]="dotfiles/.config/tmux/tmux.reset.conf"
+    ["$HOME/.config/oh-my-zsh/custom/aliases.zsh"]="dotfiles/.config/oh-my-zsh/custom/aliases.zsh"
+    ["$HOME/.config/ghostty/config"]="dotfiles/.config/ghostty/config"
 )
 
 # Sanitization function
