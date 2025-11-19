@@ -1,0 +1,13 @@
+# Configuration for sync-dotfiles.sh
+# Copy this file to .sync-config and fill in your personal information
+
+# Your macOS username (the name in /Users/YOUR_USERNAME)
+MY_USERNAME="your-username"
+
+# Your computer's hostname (check with: hostname)
+MY_HOSTNAME="your-computer.local"
+
+# Add any additional personal patterns to sanitize here in the future
+# Example:
+# MY_EMAIL="your-email@example.com"
+# MY_ORG="your-company-name"

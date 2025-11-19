@@ -1,0 +1,23 @@
+# Personal configuration (contains username, hostname, etc.)
+.sync-config
+
+# Backup files created by sed during sanitization
+*.bak
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Thumbnails
+._*
+
+# Files that might contain machine state
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+
+# other files to ignore
+CLAUDE.md
+README.md
