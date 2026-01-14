@@ -79,10 +79,12 @@ return {
 
         defaults = {
           file_ignore_patterns = {
+            '.git/.*',
             '.undodir/.*',
             'nvim%-archive/.*',
             'sessions/.*',
             'package%-lock%.json',
+            'Projects/dotfilesPublish/dotfiles/.*',
           },
           path_display = { 'truncate' },
           dynamic_preview_title = true,
@@ -145,6 +147,36 @@ return {
       -- TODO: make all these default to search with very magic mode
 
       -- ═══════════════════════════════════════════════════════════════════════════════
+      -- GIT INTEGRATION WITH DIFFVIEW
+      -- ═══════════════════════════════════════════════════════════════════════════════
+      vim.keymap.set('n', '<leader>gc', function()
+        builtin.git_commits {
+          attach_mappings = function(_, map)
+            map('i', '<CR>', function(prompt_bufnr)
+              local selection = action_state.get_selected_entry()
+              actions.close(prompt_bufnr)
+              vim.cmd('DiffviewOpen ' .. selection.value .. '^!')
+            end)
+            return true
+          end,
+        }
+      end, { desc = '[G]it [C]ommits (open in diffview)' })
+
+      vim.keymap.set('n', '<leader>gb', function()
+        builtin.git_branches {
+          attach_mappings = function(_, map)
+            map('i', '<CR>', function(prompt_bufnr)
+              local selection = action_state.get_selected_entry()
+              actions.close(prompt_bufnr)
+              -- Compare current branch with selected branch
+              vim.cmd('DiffviewOpen ' .. selection.value)
+            end)
+            return true
+          end,
+        }
+      end, { desc = '[G]it [B]ranches (compare in diffview)' })
+
+      -- ═══════════════════════════════════════════════════════════════════════════════
       -- META/HELP SEARCHES
       -- ═══════════════════════════════════════════════════════════════════════════════
       vim.keymap.set(
@@ -165,12 +197,15 @@ return {
       -- ═══════════════════════════════════════════════════════════════════════════════
       -- FILE SEARCHES
       -- ═══════════════════════════════════════════════════════════════════════════════
-      -- QUESTION: ERROR: this is not finding things in the current project directory like
-      -- it should
-      vim.keymap.set('n', '<leader>ff', builtin.find_files, { desc = '[F]ind [F]iles' })
+      vim.keymap.set('n', '<leader>ff', function()
+        builtin.find_files { hidden = true }
+      end, { desc = '[F]ind [F]iles' })
 
       vim.keymap.set('n', '<leader>fF', function()
-        require('telescope.builtin').find_files { cwd = vim.fn.expand '%:p:h' }
+        require('telescope.builtin').find_files {
+          cwd = vim.fn.expand '%:p:h',
+          hidden = true,
+        }
       end, { desc = '[F]ind [F]iles in cwd' })
 
       vim.keymap.set(
@@ -191,6 +226,7 @@ return {
         builtin.find_files {
           cwd = vim.fn.stdpath 'config',
           prompt_title = '[F]ind [N]eovim files',
+          hidden = true,
         }
       end, { desc = '[F]ind [N]eovim files' })
 
@@ -201,6 +237,7 @@ return {
             vim.fn.expand '~/.config/tmux',
           },
           prompt_title = '[F]ind [N]eovim & [T]mux files',
+          hidden = true,
         }
       end, { desc = '[F]ind [N]eovim & [T]mux files' })
 
@@ -212,6 +249,7 @@ return {
         builtin.find_files {
           cwd = vim.fn.expand '~/.config/tmux',
           prompt_title = '[F]ind [T]mux files',
+          hidden = true,
         }
       end, { desc = '[F]ind [T]mux files' })
 
@@ -219,6 +257,7 @@ return {
         builtin.find_files {
           cwd = vim.fn.expand '~/code/sennderCode',
           prompt_title = '[F]ind [S]ennder files',
+          hidden = true,
         }
       end, { desc = '[F]ind [S]ennder files' })
 
@@ -227,6 +266,7 @@ return {
         builtin.find_files {
           cwd = vim.fn.expand '~/.config',
           prompt_title = '[F]ind [F]iles in ~/.config',
+          hidden = true,
         }
       end, { desc = '[F]ind [F]iles in ~/.config' })
 
@@ -239,8 +279,14 @@ return {
 
       vim.keymap.set('n', '<leader>fo', function()
         builtin.find_files {
-          cwd = vim.fn.expand '~/Library/Mobile Documents/iCloud~md~obsidian/Documents/Obsidian1',
+          cwd = vim.fn.expand '~/Documents/ObsidianVault',
           prompt_title = '[F]ind [O]bsidian files',
+          find_command = {
+            'rg',
+            '--files',
+            '--glob', '*.md',
+            '--glob', '*.txt',
+          },
         }
       end, { desc = '[F]ind [O]bsidian files' })
 
@@ -270,8 +316,8 @@ return {
         builtin.live_grep {
           search_dirs = {
             vim.fn.expand '~/code/sennderCode',
-            vim.fn.expand '~/Library/Mobile Documents/iCloud~md~obsidian/Documents/Obsidian1/Bear/Sennder/',
-            vim.fn.expand '~/Library/Mobile Documents/iCloud~md~obsidian/Documents/Obsidian1/WorkDayoneJournalSennderOut/',
+            vim.fn.expand '~/Documents/ObsidianVault',
+            vim.fn.expand '~/Documents/ObsidianVault',
           },
           prompt_title = '[S]earch by Grep Sennder Code and Obsidian Notes',
         }
@@ -337,7 +383,7 @@ return {
 
       -- vim.keymap.set('n', '<leader>so', function()
       --   builtin.live_grep {
-      --     cwd = vim.fn.expand '~/Library/Mobile Documents/iCloud~md~obsidian/Documents/Obsidian1',
+      --     cwd = vim.fn.expand '~/Documents/ObsidianVault',
       --     prompt_title = '[S]earch by Grep in [O]bsidian',
       --   }
       -- end, { desc = '[S]earch by Grep in [O]bsidian' })

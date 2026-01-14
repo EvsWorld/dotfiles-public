@@ -93,3 +93,4 @@ clipboard-trim-trailing-spaces = true
 link-url                       = true
 keybind                        = f10=inspector:toggle
 # ********************  end ThorstenRhau  ***********************
+keybind = shift+enter=text:\x1b\r

@@ -12,6 +12,7 @@ return {
         -- text = { 'vale' }, -- TODO: this seems to be causing errors
         json = { 'jsonlint' },
         toml = { 'taplo' },
+        -- python = { 'flake8' },
       }
 
       -- To allow other plugins to add linters to require('lint').linters_by_ft,

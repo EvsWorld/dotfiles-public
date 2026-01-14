@@ -57,6 +57,32 @@ declare -A FILES=(
     ["$HOME/.config/nvim/lua/kickstart/plugins/mini.lua"]="dotfiles/.config/nvim/lua/kickstart/plugins/mini.lua"
     ["$HOME/.config/nvim/lua/kickstart/plugins/nvim-tmux-navigation.lua"]="dotfiles/.config/nvim/lua/kickstart/plugins/nvim-tmux-navigation.lua"
     ["$HOME/.config/nvim/lua/kickstart/plugins/telescope.lua"]="dotfiles/.config/nvim/lua/kickstart/plugins/telescope.lua"
+    ["$HOME/.config/nvim/lua/kickstart/plugins/alpha-dashboard.lua"]="dotfiles/.config/nvim/lua/kickstart/plugins/alpha-dashboard.lua"
+    ["$HOME/.config/nvim/lua/kickstart/plugins/avante.lua"]="dotfiles/.config/nvim/lua/kickstart/plugins/avante.lua"
+    ["$HOME/.config/nvim/lua/kickstart/plugins/blink-cmp.lua"]="dotfiles/.config/nvim/lua/kickstart/plugins/blink-cmp.lua"
+    ["$HOME/.config/nvim/lua/kickstart/plugins/copilot.lua"]="dotfiles/.config/nvim/lua/kickstart/plugins/copilot.lua"
+    ["$HOME/.config/nvim/lua/kickstart/plugins/debug.lua"]="dotfiles/.config/nvim/lua/kickstart/plugins/debug.lua"
+    ["$HOME/.config/nvim/lua/kickstart/plugins/diffview.lua"]="dotfiles/.config/nvim/lua/kickstart/plugins/diffview.lua"
+    ["$HOME/.config/nvim/lua/kickstart/plugins/gemini.lua"]="dotfiles/.config/nvim/lua/kickstart/plugins/gemini.lua"
+    ["$HOME/.config/nvim/lua/kickstart/plugins/git-conflict.lua"]="dotfiles/.config/nvim/lua/kickstart/plugins/git-conflict.lua"
+    ["$HOME/.config/nvim/lua/kickstart/plugins/gitsigns.lua"]="dotfiles/.config/nvim/lua/kickstart/plugins/gitsigns.lua"
+    ["$HOME/.config/nvim/lua/kickstart/plugins/indent_line.lua"]="dotfiles/.config/nvim/lua/kickstart/plugins/indent_line.lua"
+    ["$HOME/.config/nvim/lua/kickstart/plugins/markdown-preview.lua"]="dotfiles/.config/nvim/lua/kickstart/plugins/markdown-preview.lua"
+    ["$HOME/.config/nvim/lua/kickstart/plugins/neo-tree.lua"]="dotfiles/.config/nvim/lua/kickstart/plugins/neo-tree.lua"
+    ["$HOME/.config/nvim/lua/kickstart/plugins/obsidian.lua"]="dotfiles/.config/nvim/lua/kickstart/plugins/obsidian.lua"
+    ["$HOME/.config/nvim/lua/kickstart/plugins/oil.lua"]="dotfiles/.config/nvim/lua/kickstart/plugins/oil.lua"
+    ["$HOME/.config/nvim/lua/kickstart/plugins/outline.lua"]="dotfiles/.config/nvim/lua/kickstart/plugins/outline.lua"
+    ["$HOME/.config/nvim/lua/kickstart/plugins/scrollview.lua"]="dotfiles/.config/nvim/lua/kickstart/plugins/scrollview.lua"
+    ["$HOME/.config/nvim/lua/kickstart/plugins/smart-splits.lua"]="dotfiles/.config/nvim/lua/kickstart/plugins/smart-splits.lua"
+    ["$HOME/.config/nvim/lua/kickstart/plugins/statusline.lua"]="dotfiles/.config/nvim/lua/kickstart/plugins/statusline.lua"
+    ["$HOME/.config/nvim/lua/kickstart/plugins/todo-comments.lua"]="dotfiles/.config/nvim/lua/kickstart/plugins/todo-comments.lua"
+    ["$HOME/.config/nvim/lua/kickstart/plugins/tokyonight.lua"]="dotfiles/.config/nvim/lua/kickstart/plugins/tokyonight.lua"
+    ["$HOME/.config/nvim/lua/kickstart/plugins/treesitter.lua"]="dotfiles/.config/nvim/lua/kickstart/plugins/treesitter.lua"
+    ["$HOME/.config/nvim/lua/kickstart/plugins/undotree.lua"]="dotfiles/.config/nvim/lua/kickstart/plugins/undotree.lua"
+    ["$HOME/.config/nvim/lua/kickstart/plugins/vim-apm.lua"]="dotfiles/.config/nvim/lua/kickstart/plugins/vim-apm.lua"
+    ["$HOME/.config/nvim/lua/kickstart/plugins/which-key.lua"]="dotfiles/.config/nvim/lua/kickstart/plugins/which-key.lua"
+    ["$HOME/.config/nvim/lua/custom/plugins/init.lua"]="dotfiles/.config/nvim/lua/custom/plugins/init.lua"
+    ["$HOME/.config/nvim/lazy-lock.json"]="dotfiles/.config/nvim/lazy-lock.json"
     ["$HOME/.config/nvim/lua/options.lua"]="dotfiles/.config/nvim/lua/options.lua"
     ["$HOME/.config/nvim/lua/keyremaps.lua"]="dotfiles/.config/nvim/lua/keyremaps.lua"
 )
@@ -71,6 +97,9 @@ sanitize_file() {
     # Replace personal hostname with placeholder
     sed -i.bak "s/\"$MY_HOSTNAME\"/\"YOUR-HOSTNAME.local\"/g" "$file"
     sed -i.bak "s/'$MY_HOSTNAME'/'YOUR-HOSTNAME.local'/g" "$file"
+
+    # Sanitize Obsidian vault path (iCloud specific)
+    sed -i.bak "s|~/Library/Mobile Documents/iCloud~md~obsidian/Documents/[^'\"]*|~/Documents/ObsidianVault|g" "$file"
 
     # Clean up backup files
     rm -f "$file.bak"

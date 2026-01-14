@@ -24,6 +24,8 @@ require('lazy').setup({
   -- include a plugin definition from file lua/path/name.lua
 
   require 'kickstart.plugins.gitsigns',
+  require 'kickstart.plugins.diffview',
+  require 'kickstart.plugins.git-conflict',
   require 'kickstart.plugins.which-key',
 
   require 'kickstart.plugins.telescope',
@@ -67,8 +69,9 @@ require('lazy').setup({
   require 'kickstart.plugins.lint',
 
   require 'kickstart.plugins.auto-save', -- not working at all
+  require 'kickstart.plugins.gemini',
   -- require 'kickstart.plugins.avante',
-  -- require 'kickstart.plugins.code-bridge',
+  require 'kickstart.plugins.code-bridge',
 
   -- The following comments only work if you have downloaded the kickstart repo, not just copy pasted the
   -- init.lua. If you want these files, they are in the repository, so you can just download them and

@@ -133,18 +133,18 @@ autocmd('VimResized', {
   command = 'wincmd =',
 })
 
--- Only allow soft wrap for markdown and text files
-local wrap_allowed_group = augroup('WrapAllowedFileTypes', { clear = true })
+-- Enable soft wrap by default for markdown and text files, disable for all others
+local wrap_control_group = augroup('WrapControl', { clear = true })
 autocmd({ 'FileType', 'BufEnter', 'BufWinEnter' }, {
-  group = wrap_allowed_group,
+  group = wrap_control_group,
   pattern = '*',
   callback = function()
     local ft = vim.bo.filetype
-    -- Only markdown and text files are allowed to wrap
+    -- Enable wrap by default for markdown and text files
     if ft == 'markdown' or ft == 'text' then
-      -- Don't enable wrap by default, just allow it to be toggled
-      -- Keep it off by default
-      vim.opt_local.wrap = false
+      vim.opt_local.wrap = true
+      vim.opt_local.linebreak = true
+      vim.opt_local.breakindent = true
     else
       -- All other filetypes: enforce no wrap
       vim.opt_local.wrap = false
