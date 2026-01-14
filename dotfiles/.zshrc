@@ -13,6 +13,12 @@ ZSH_CUSTOM="$HOME/.config/oh-my-zsh/custom"
 #  NOTE: my theme is located here: ~/.config/oh-my-zsh/custom/evan_robbyrussell_theme.zsh-theme
 ZSH_THEME="evan_robbyrussell_theme"
 
+# Which plugins would you like to load?
+# Standard plugins can be found in $ZSH/plugins/
+# Custom plugins may be added to $ZSH_CUSTOM/plugins/
+# Add wisely, as too many plugins slow down shell startup.
+plugins=(git npm macos aliases zsh-autosuggestions zsh-syntax-highlighting fzf)
+
 # Source Oh My Zsh configuration.
 # This loads all the standard oh-my-zsh functionality, including plugins, themes, and other configurations.
 source $ZSH/oh-my-zsh.sh
@@ -25,6 +31,9 @@ source $HOME/.zshenv
 #  NOTE:  which aliases.zsh file should i source? # Source your custom aliases.
 # By sourcing it here, all your custom aliases will be available after oh-my-zsh is initialized.
 source $ZSH_CUSTOM/aliases.zsh
+
+# python env pyenv setup
+eval "$(pyenv init -)"
 
 # Initialize zoxide  and map to key j (must come after oh-my-zsh)
 eval "$(zoxide init zsh --cmd j)"
@@ -61,13 +70,6 @@ setopt histignorealldups
 
 # Share history between all terminal sessions in real-time
 setopt sharehistory
-
-# Which plugins would you like to load?
-# Standard plugins can be found in $ZSH/plugins/
-# Custom plugins may be added to $ZSH_CUSTOM/plugins/
-# Add wisely, as too many plugins slow down shell startup.
-# TODO: set up highlighting 
-plugins=(git npm macos aliases zsh-autosuggestions zsh-syntax-highlighting fzf)
 
 #  ****************************** User configuration ****************************************
 #  *****************************************************************************************
@@ -113,6 +115,10 @@ if [[ $(hostname) = "YOUR-HOSTNAME.local" ]]; then
 	export PATH="$PATH:$HOME/scripts"
 	#  TODO: make sure all scripts in the child directory are also callable from anywhere
 	export PATH="$PATH:$HOME/.config/scripts"
+	# Add OrbStack binaries to PATH (for docker, docker-compose, kubectl)
+	export PATH="$HOME/.orbstack/bin:$PATH"
+	# Claude Code native installation
+	export PATH="$HOME/.local/bin:$PATH"
 	export TMUX_CONF="$HOME/.config/tmux/tmux.conf"
 	# export XDG_CONFIG_HOME="$HOME/.config"
 fi

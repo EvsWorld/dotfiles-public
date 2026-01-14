@@ -156,6 +156,7 @@
                 :anki ["^net\\.ankiweb\\.dtop$"]
                 :chrome ["^com\\.google\\.Chrome$"]
                 :safari ["^com\\.apple\\.Safari$"]
+                :photos ["^com\\.apple\\.Photos$"]
                 :firefox ["^org\\.mozilla\\.firefox$"]
                 :finder ["^com\\.apple\\.finder$"]
                 :iterm ["com.googlecode.iterm2"]
@@ -585,8 +586,10 @@
                  [:1 :!OSCTequal_sign [:vscodeAndCursor]]              ;; left hand zoom. really good
                  [:grave_accent_and_tilde :!Chyphen [:!code]]  ;; left hand zoom. really good
                  [:1 :!Cequal_sign [:!code]]              ;; left hand zoom. really good
-                 [:2 [:keyboardMaestro "Open Gmail"]]   ;; proxy open pinned gmail extension
-                 [:3 [:keyboardMaestro "Open/Reveal: Finder"]]
+                 ; [:2 [:keyboardMaestro "Open Gmail"]]   ;; proxy open pinned gmail extension
+                 [:2 [:keyboardMaestro "Search selection in google"]]  ;; used to be: ;;  [:1 :!!1]
+                 [:3 [:keyboardMaestro "Things Quick Add"]]   ;; proxy global for add new item to things app
+                 ; [:3 [:keyboardMaestro "Open/Reveal: Finder"]]
                  [:4 [:keyboardMaestro "Open/Reveal: Finder - downloads"]]
                  [:5 [:keyboardMaestro "Open/Reveal Finder - Recents"]]
          ;;  **** z-numbers-right hand ****
@@ -694,9 +697,9 @@
          ;;  ****** grave-FUNCTION-right hand ******
          ;; ***** grave-NUMBERS-- ********
          ;;  ****** grave-numbers-left hand ******
-                 [:1 [:keyboardMaestro "Search selection in google"]]  ;; used to be: ;;  [:1 :!!1]
+                 ; [:1 [:keyboardMaestro "Search selection in google"]]  ;; used to be: ;;  [:1 :!!1]
                 ;;  [:1 [:keyboardMaestro "Hide chatgpt"]]  ;; TODO works well. can put to something else
-                 [:2 [:keyboardMaestro "Things Quick Add"]]   ;; proxy global for add new item to things app
+                 ; [:2 [:keyboardMaestro "Things Quick Add"]]   ;; proxy global for add new item to things app
                  [:3 [:keyboardMaestro "Things Add and Print Todo"]]
                  [:4 [:keyboardMaestro "Calendar: Create New Event"]]
                  [:5 [:keyboardMaestro "Dayone: New entry"]]
@@ -1139,6 +1142,13 @@
                  ;;;;;
                  ]}
 
+        {:des "photos-- (apple photos)"
+         :rules [;
+                 [:left_command :left_command nil {:alone :!Cf}]
+                 [:left_option :left_option nil {:alone :!Cf}]
+                ;;;;;;
+                 ]}
+
         {:des "ghostty--"
          :rules [:ghostty
                  ; [:left_command :left_command nil {:alone [:!Tspacebar :spacebar]}]
@@ -1341,6 +1351,9 @@
 
                 ;;   ************************** tabs ***************************
                 ;;  control 1 , control 2 to move tab to beginning and end (proxy)
+
+                 [:!CSt  [:!Ct]]  ;; new tab
+                 [:!Ct [:keyboardMaestro "firefox: pin tab"]]
 
                 ; TODO: this is broken
                  [:!CSopen_bracket :!Opage_down]       ;; Move tab left (Ctrl + Shift + Page Up in Firefox) extension proxy

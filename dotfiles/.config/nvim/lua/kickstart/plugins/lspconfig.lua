@@ -135,6 +135,7 @@ return {
           vim.keymap.set('n', 'gd', function()
             vim.lsp.buf.definition()
           end, { desc = 'Go to definition', buffer = event.buf })
+          -- TODO: why doesnt this work?
           vim.keymap.set('n', 'gh', function()
             vim.lsp.buf.hover()
           end, { desc = 'Hover', buffer = event.buf })
@@ -299,7 +300,49 @@ return {
       local servers = {
         -- clangd = {},
         -- gopls = {},
-        -- pyright = {},
+        pyright = {
+          -- Note: venv detection is handled by pyrightconfig.json in project root
+          settings = {
+            python = {
+              analysis = {
+                typeCheckingMode = 'basic',
+                autoSearchPaths = true,
+                useLibraryCodeForTypes = true,
+              },
+            },
+          },
+        },
+
+        -- python-lsp-server configured to use MyPy for type checking
+        -- pylsp = {
+        --   settings = {
+        --     pylsp = {
+        --       plugins = {
+        --         -- Disable built-in linters (use MyPy only)
+        --         pycodestyle = { enabled = false },
+        --         mccabe = { enabled = false },
+        --         pyflakes = { enabled = false },
+        --         pylint = { enabled = false },
+        --         yapf = { enabled = false },
+        --         autopep8 = { enabled = false },
+        --
+        --         -- Enable MyPy plugin for type checking
+        --         pylsp_mypy = {
+        --           enabled = true,
+        --           live_mode = true, -- Real-time diagnostics as you type
+        --           dmypy = false,    -- Don't use daemon (simpler setup)
+        --         },
+        --
+        --         -- Keep LSP features (completions, hover, etc.)
+        --         jedi_completion = { enabled = true },
+        --         jedi_hover = { enabled = true },
+        --         jedi_references = { enabled = true },
+        --         jedi_signature_help = { enabled = true },
+        --         jedi_symbols = { enabled = true },
+        --       },
+        --     },
+        --   },
+        -- },
         -- rust_analyzer = {},
         -- ... etc. See `:help lspconfig-all` for a list of all the pre-configured LSPs
         --
@@ -347,6 +390,8 @@ return {
         'markdownlint', -- Fix existing markdown linting
         'vale', -- Fix existing text linting
         'jsonlint', -- Fix existing JSON linting
+        'black', -- Python formatter (system-wide fallback)
+        'isort', -- Python import sorter (system-wide fallback)
       })
       require('mason-tool-installer').setup { ensure_installed = ensure_installed }
 
@@ -356,6 +401,11 @@ return {
         automatic_installation = false,
         handlers = {
           function(server_name)
+            -- Explicitly disable pylsp to prevent it from running alongside pyright.
+            if server_name == 'pylsp' then
+              return
+            end
+
             -- Skip stylua - it's a formatter, not an LSP server
             -- if server_name == 'stylua' then
             --   return

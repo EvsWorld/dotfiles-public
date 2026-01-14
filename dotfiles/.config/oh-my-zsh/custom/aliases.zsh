@@ -1,6 +1,14 @@
 # ***** python *****
 # alias scce='source venv/bin/activate'
 
+# *********** pgadmin *********************
+alias pgadmin='docker run \
+  -p 5050:80 \
+  -e "PGADMIN_DEFAULT_EMAIL=name@example.com" \
+  -e "PGADMIN_DEFAULT_PASSWORD=admin" \
+  -d dpage/pgadmin4'
+
+
 # ***** Tmux + Vim session management ***************
 alias tmux='tmux -f $TMUX_CONF'
 alias tmnew='tmux new-session -s'    # Create new tmux session: tnew project-name
@@ -55,17 +63,9 @@ mcd() {
 alias vimp='NVIM_APPNAME="nvim-theprimeagen" nvim'
 alias vm=nvim
 alias vim=nvim
-alias cll='claude'
-alias clr='claude --resume'
-
-alias cllv='gtv && claude'
-alias cllcf='gtcf && claude'
-alias cllt='gttm && claude'
-alias cllscri='gtscri && claude'
-alias cllscrii='gtscrii && claude'
-alias cllscra='gtscra && claude'
-alias cllh='cd ~/ && claude'
-alias cllcl='gtcl && claude'
+alias cco='claude'
+alias ccr='claude --resume'
+alias gmm='gemini'
 
 alias gk='goku'
 # ******* End programs ********
@@ -296,6 +296,24 @@ glf() {
 }
 
 # ************************************************************
+# ******** Additional git aliases matching cfg pattern ******
+# ************************************************************
+# These mirror the cfg (bare repo) workflow for consistency
+
+# ********** review staged changes **********
+alias gdcs='git diff --cached --stat'      # Quick overview of staged files
+alias gdcss='git diff --cached'            # Full diff (gdca exists, but adding for consistency)
+
+# ********** safe commit pattern **********
+# Recommended workflow: gss → gau → gdcs → gcum "msg" → ggp
+alias gcum='git add -u && git commit -m'   # Stage tracked + commit (mirrors ccum)
+
+# ********** unstaging/discarding **********
+alias grs='git restore --staged'           # Unstage files (keep changes)
+alias grs!='git restore'                   # DANGER: Discard uncommitted changes
+# ************************************************************
+
+# ************************************************************
 # ************** dot files bare-repo-- (~/.cfg) ****************
 # ************************************************************
 alias cfg="/usr/bin/git --git-dir=$HOME/.cfg/ --work-tree=$HOME"
@@ -307,7 +325,7 @@ alias clols='clol --stat'
 alias clog='cfg log --oneline --decorate --graph'
 
 
-# Recommended workflow: cs → cau → cdcs → ccm "msg" → cfp
+# Recommended workflow: cs → cau → cdcs → ccum "msg" → cfp
 # (check status → stage updates → review staged → commit → push)
 
 # ********** status **********
@@ -324,6 +342,11 @@ alias ca='cfg add'
 alias cdcs='cfg diff --cached --stat'      # Quick overview of staged files
 alias cdcss='cfg diff --cached'            # Full diff of staged changes
 
+# ********** unstaging/discarding **********
+alias crs='cfg restore --staged'           # Unstage files (keep changes)
+alias crs!='cfg restore'                   # DANGER: Discard uncommitted changes
+alias creset='cfg reset HEAD~1'            # Undo last commit (keep changes)
+
 # ******** commit **********
 unalias ccam 2>/dev/null
 # alias ccam='cfg  commit -a -m'
@@ -332,8 +355,10 @@ unalias ccam 2>/dev/null
 alias ccum='cfg add -u && cfg commit -m'     
 
 alias ccm='cfg commit -m'
-# TODO: ?? change to not -a 
+
+# Amend last commit with all tracked changes (modified/deleted files), keeping existing message
 alias ccan!='cfg commit -v -a --no-edit --amend'
+
 
 # TODO: ?? change to not -a  ?? 
 alias cca!='cfg add -A && cfg commit --verbose --all --amend'

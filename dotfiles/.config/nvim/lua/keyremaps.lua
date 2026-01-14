@@ -122,8 +122,8 @@ vim.keymap.set({ 'o', 'v', 'n' }, 'zm', 'M', { desc = 'Move to middle of page' }
 vim.keymap.set({ 'o', 'v', 'n' }, 'gL', 'g$', { desc = 'Move to end of viewport line' })
 vim.keymap.set({ 'o', 'v', 'n' }, 'gH', 'g^', { desc = 'Move to end of viewport line' })
 
-vim.keymap.set({ 'v', 'n' }, 'j', 'gj', { desc = 'Down same for wrapped or no wrapped' })
-vim.keymap.set({ 'v', 'n' }, 'k', 'gk', { desc = 'Up same for wrapped or no wrapped' })
+-- vim.keymap.set({ 'v', 'n' }, 'j', 'gj', { desc = 'Down same for wrapped or no wrapped' })
+-- vim.keymap.set({ 'v', 'n' }, 'k', 'gk', { desc = 'Up same for wrapped or no wrapped' })
 
 -- TODO: M available
 
