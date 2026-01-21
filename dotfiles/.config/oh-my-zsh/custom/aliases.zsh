@@ -364,6 +364,8 @@ alias ccan!='cfg commit -v -a --no-edit --amend'
 alias cca!='cfg add -A && cfg commit --verbose --all --amend'
 alias cca='cfg add -A && cfg commit --verbose --all'
 
+alias cwip='cfg add -A && cfg commit --no-verify --no-gpg-sign --message "--wip-- [skip ci]"'
+
 # Verbose commit (shows diff in commit message editor)
 alias cc='cfg commit -v'
 

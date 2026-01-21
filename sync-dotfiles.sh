@@ -2,6 +2,7 @@
 
 # Sync and sanitize dotfiles for public sharing
 # Usage: Run this script from anywhere with: cfg publish-dotfiles
+# test Jan 21 Wed  05:37 
 
 set -e  # Exit on error
 
