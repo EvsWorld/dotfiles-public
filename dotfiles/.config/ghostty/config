@@ -75,9 +75,10 @@ scrollback-limit = 100000
 
 # SHELL
 shell-integration = zsh
-# Disable cursor feature which can add latency on new panes
-shell-integration-features = sudo,title
 
+# TODO: maybe turn off cursor, because its making new shells start slow
+# Enable cursor feature for OSC 133 prompt marking support
+shell-integration-features = sudo,title
 
 # ********************** experiments **************
 mouse-hide-while-typing = true

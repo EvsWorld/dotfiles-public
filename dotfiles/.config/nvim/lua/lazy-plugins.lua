@@ -72,6 +72,7 @@ require('lazy').setup({
   require 'kickstart.plugins.gemini',
   -- require 'kickstart.plugins.avante',
   require 'kickstart.plugins.code-bridge',
+  require 'kickstart.plugins.neo-tree',
 
   -- The following comments only work if you have downloaded the kickstart repo, not just copy pasted the
   -- init.lua. If you want these files, they are in the repository, so you can just download them and
@@ -83,7 +84,6 @@ require('lazy').setup({
   --  Uncomment any of the lines below to enable them (you will need to restart nvim).
   --
   -- require 'kickstart.plugins.debug',
-  -- require 'kickstart.plugins.neo-tree',
 
   -- Smart splits for window management (configured in kickstart/plugins/smart-splits.lua)
 

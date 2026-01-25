@@ -97,7 +97,8 @@ vim.o.sidescrolloff = 3
 -- Disable line wrapping
 vim.o.wrap = false
 
-vim.o.colorcolumn = '90'
+vim.o.colorcolumn = '88' -- Match Black
+vim.o.textwidth = 88 -- Match Black
 
 -- TODO: is this needed?
 vim.o.textwidth = 90

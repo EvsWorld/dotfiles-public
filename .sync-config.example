@@ -11,3 +11,9 @@ MY_HOSTNAME="your-computer.local"
 # Example:
 # MY_EMAIL="your-email@example.com"
 # MY_ORG="your-company-name"
+
+# Alfred Workflows Showcase
+# Set to true to generate a public showcase of Alfred workflows you use
+GENERATE_ALFRED_SHOWCASE=true
+# Path to your Alfred preferences (usually in Dropbox if synced)
+ALFRED_PREFS_DIR="$HOME/Library/CloudStorage/Dropbox/settings/alfred/Alfred.alfredpreferences"

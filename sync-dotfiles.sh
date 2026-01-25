@@ -86,6 +86,11 @@ declare -A FILES=(
     ["$HOME/.config/nvim/lazy-lock.json"]="dotfiles/.config/nvim/lazy-lock.json"
     ["$HOME/.config/nvim/lua/options.lua"]="dotfiles/.config/nvim/lua/options.lua"
     ["$HOME/.config/nvim/lua/keyremaps.lua"]="dotfiles/.config/nvim/lua/keyremaps.lua"
+    ["$HOME/.config/tmux/README.md"]="dotfiles/.config/tmux/README.md"
+    ["$HOME/.config/nvim/README.md"]="dotfiles/.config/nvim/README.md"
+    ["$HOME/.config/ghostty/README.md"]="dotfiles/.config/ghostty/README.md"
+    ["$HOME/.config/oh-my-zsh/custom/README.md"]="dotfiles/.config/oh-my-zsh/custom/README.md"
+    # TODO: add these, and others similar, if applicable
 )
 
 # Sanitization function
@@ -127,6 +132,17 @@ for src in "${!FILES[@]}"; do
     sanitize_file "$dest"
     echo "  → Sanitized personal data"
 done
+
+echo ""
+
+# Generate Alfred workflow showcase if enabled
+if [ "${GENERATE_ALFRED_SHOWCASE:-false}" = true ]; then
+    echo "========================================="
+    echo "Generating Alfred Workflows Showcase..."
+    echo "========================================="
+    echo ""
+    ./generate-alfred-showcase.sh
+fi
 
 echo ""
 echo "========================================="

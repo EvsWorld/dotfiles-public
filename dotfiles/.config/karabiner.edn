@@ -1218,9 +1218,11 @@
                  ]}
 
         {:des "whatsapp--"
+         ; :priority 150
          :rules [:whatsapp
-                 [:left_option :left_option nil {:alone :!Cf}]   ;; search for people
-                 [:left_command :left_command nil {:alone :!COf}]  ;; search in messages
+                 [:left_option :left_option nil {:alone :!Cf}]   ;; search in all chats
+                 ; TODO: FIX: this is not working. its just sending command+f
+                 [:left_command :left_command nil {:alone :!COf}]  ;; search in current chat
 
                  ;; right_command reserved for homerow
                  [:!Copen_bracket :!SCopen_bracket]  ;; move forward a conversation
@@ -1237,7 +1239,14 @@
                  [:!Chyphen [:beep]]          ;; TODO: disable old / training wheels
                  [:!Cequal_sign [:beep]]      ;; TODO: disable old / training wheels
                  [:!C0 :!Cn]                   ;; open new is command + 0
-                ;;  [:!Tgrave_accent_and_tilde  :!TStab]        ;;  left hand mapping to go to previous convo. (deprecated. worked fine but not using it)
+
+                 ; navigate between chats, calls, archives, favorites..
+                 [:!C1 :!T1] ;; go to chats
+                 [:!C2 :!T4] ;; go to archived chats
+                 [:!C3 :!T2] ;; go to calls
+                 [:!C4 :!T5] ;; go to favorites
+
+;;  [:!Tgrave_accent_and_tilde  :!TStab]        ;;  left hand mapping to go to previous convo. (deprecated. worked fine but not using it)
                  ;;;;;
                  ]}
 
@@ -1352,8 +1361,8 @@
                 ;;   ************************** tabs ***************************
                 ;;  control 1 , control 2 to move tab to beginning and end (proxy)
 
-                 [:!CSt  [:!Ct]]  ;; new tab
-                 [:!Ct [:keyboardMaestro "firefox: pin tab"]]
+                 [:!CSt [:keyboardMaestro "firefox: pin tab"]]
+                 [:!CRt [:keyboardMaestro "firefox: pin tab"]]
 
                 ; TODO: this is broken
                  [:!CSopen_bracket :!Opage_down]       ;; Move tab left (Ctrl + Shift + Page Up in Firefox) extension proxy

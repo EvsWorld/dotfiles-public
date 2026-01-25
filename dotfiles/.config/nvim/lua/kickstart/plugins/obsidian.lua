@@ -106,12 +106,6 @@ return {
       time_format = '%H:%M',
     },
 
-    -- Follow link behavior
-    follow_url_func = function(url)
-      -- Open URLs in default browser
-      vim.fn.jobstart { 'open', url }
-    end,
-
     -- Disable legacy commands (use new lowercase format)
     legacy_commands = false,
 

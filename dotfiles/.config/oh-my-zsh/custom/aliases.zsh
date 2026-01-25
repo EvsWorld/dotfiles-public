@@ -1,5 +1,6 @@
 # ***** python *****
 # alias scce='source venv/bin/activate'
+# TEST: cwip alias test comment
 
 # *********** pgadmin *********************
 alias pgadmin='docker run \
@@ -65,7 +66,8 @@ alias vm=nvim
 alias vim=nvim
 alias cco='claude'
 alias ccr='claude --resume'
-alias gmm='gemini'
+alias gmm='gemini --sandbox'
+alias oc='opencode'
 
 alias gk='goku'
 # ******* End programs ********
@@ -295,11 +297,6 @@ glf() {
     git log --oneline --decorate --stat --color=always --date=format:'%a %Y-%m-%d %H:%M:%S' --pretty=format:'%C(yellow)%h%C(reset) %C(green)(%ad)%C(reset) %C(bold blue)%s%C(reset)%C(auto)%d%C(reset)'
 }
 
-# ************************************************************
-# ******** Additional git aliases matching cfg pattern ******
-# ************************************************************
-# These mirror the cfg (bare repo) workflow for consistency
-
 # ********** review staged changes **********
 alias gdcs='git diff --cached --stat'      # Quick overview of staged files
 alias gdcss='git diff --cached'            # Full diff (gdca exists, but adding for consistency)
@@ -313,6 +310,8 @@ alias grs='git restore --staged'           # Unstage files (keep changes)
 alias grs!='git restore'                   # DANGER: Discard uncommitted changes
 # ************************************************************
 
+
+
 # ************************************************************
 # ************** dot files bare-repo-- (~/.cfg) ****************
 # ************************************************************
@@ -323,7 +322,6 @@ alias clg='cfg log --stat'
 alias clol='cfg log --graph --pretty="%Cred%h%Creset -%C(auto)%d%Creset %s %Cgreen(%ar) %C(bold blue)<%an>%Creset"'
 alias clols='clol --stat'
 alias clog='cfg log --oneline --decorate --graph'
-
 
 # Recommended workflow: cs → cau → cdcs → ccum "msg" → cfp
 # (check status → stage updates → review staged → commit → push)
@@ -351,6 +349,8 @@ alias creset='cfg reset HEAD~1'            # Undo last commit (keep changes)
 unalias ccam 2>/dev/null
 # alias ccam='cfg  commit -a -m'
 
+alias cwip='cfg add -u && cfg commit --no-verify --no-gpg-sign --message "--wip-- [skip ci]"'
+
 # state all modified tracked files and commit them ( NOTE:  seems to work well)
 alias ccum='cfg add -u && cfg commit -m'     
 
@@ -363,8 +363,6 @@ alias ccan!='cfg commit -v -a --no-edit --amend'
 # TODO: ?? change to not -a  ?? 
 alias cca!='cfg add -A && cfg commit --verbose --all --amend'
 alias cca='cfg add -A && cfg commit --verbose --all'
-
-alias cwip='cfg add -A && cfg commit --no-verify --no-gpg-sign --message "--wip-- [skip ci]"'
 
 # Verbose commit (shows diff in commit message editor)
 alias cc='cfg commit -v'

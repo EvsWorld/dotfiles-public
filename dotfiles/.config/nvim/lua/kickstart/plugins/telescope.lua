@@ -230,28 +230,49 @@ return {
         }
       end, { desc = '[F]ind [N]eovim files' })
 
-      vim.keymap.set('n', '<leader>ftn', function()
+      vim.keymap.set('n', '<leader>ft', function()
+        local nvim_dir = vim.fn.stdpath 'config'
+        local tmux_dir = vim.fn.expand '~/.config/tmux'
+        local ghostty_dir = vim.fn.expand '~/.config/ghostty'
+        local claude_dir = vim.fn.expand '~/.config/.claude'
+        local opencode_dir = vim.fn.expand '~/.config/opencode'
+        local gemini_dir = vim.fn.expand '~/.gemini'
+        local ohmyzsh_custom_dir = vim.fn.expand '~/.config/oh-my-zsh/custom'
+        local home = vim.fn.expand '~'
         builtin.find_files {
-          search_dirs = {
-            vim.fn.stdpath 'config',
-            vim.fn.expand '~/.config/tmux',
+          prompt_title = '[F]ind [N]eovim, [T]mux, Ghostty & config files',
+          cwd = home,
+          find_command = {
+            'sh',
+            '-c',
+            string.format(
+              '(find "%s" "%s" "%s" "%s" "%s" "%s" "%s" -type f 2>/dev/null; printf "%%s\\n" "%s/.ssh/config" "%s/.config/gh/config.yml" "%s/.config/gemini.md" "%s/.zshrc" "%s/.zshenv" "%s/.zprofile" "%s/.bash_profile" "%s/.gitconfig" "%s/.gitignore_global" "%s/.vimrc" "%s/.config/karabiner.edn") | sort -u',
+              nvim_dir,
+              tmux_dir,
+              ghostty_dir,
+              claude_dir,
+              opencode_dir,
+              gemini_dir,
+              ohmyzsh_custom_dir,
+              home,
+              home,
+              home,
+              home,
+              home,
+              home,
+              home,
+              home,
+              home,
+              home,
+              home
+            ),
           },
-          prompt_title = '[F]ind [N]eovim & [T]mux files',
-          hidden = true,
         }
-      end, { desc = '[F]ind [N]eovim & [T]mux files' })
+      end, { desc = '[F]ind [N]eovim, [T]mux, Ghostty & config files' })
 
       -- TODO: make this so it searches for shortcuts, and when i hit enter on the found result,
       -- it goes to the shortcut where the shortcut is defined, not execute the shortcut.
       vim.keymap.set('n', '<leader>sk', builtin.keymaps, { desc = '[S]earch [K]eymaps' })
-
-      vim.keymap.set('n', '<leader>ftt', function()
-        builtin.find_files {
-          cwd = vim.fn.expand '~/.config/tmux',
-          prompt_title = '[F]ind [T]mux files',
-          hidden = true,
-        }
-      end, { desc = '[F]ind [T]mux files' })
 
       vim.keymap.set('n', '<leader>fg', function()
         builtin.find_files {
@@ -284,11 +305,31 @@ return {
           find_command = {
             'rg',
             '--files',
-            '--glob', '*.md',
-            '--glob', '*.txt',
+            '--glob',
+            '*.md',
+            '--glob',
+            '*.txt',
           },
         }
       end, { desc = '[F]ind [O]bsidian files' })
+
+      vim.keymap.set('n', '<leader>fai', function()
+        local home = vim.fn.expand '~'
+        builtin.find_files {
+          prompt_title = '[F]ind [A]I [I]nstruction files (CLAUDE.md, gemini.md, agent.md)',
+          cwd = home,
+          find_command = {
+            'sh',
+            '-c',
+            string.format(
+              'find "%s/Projects" "%s/projects" "%s/code" -type f \\( -iname "CLAUDE.md" -o -iname "gemini.md" -o -iname "agent.md" \\) 2>/dev/null | sort',
+              home,
+              home,
+              home
+            ),
+          },
+        }
+      end, { desc = '[F]ind [A]I [I]nstruction files across projects' })
 
       -- ═══════════════════════════════════════════════════════════════════════════════
       -- LIVE GREP SEARCHES (Type and search as you go)
@@ -341,14 +382,14 @@ return {
       -- end, { desc = '[F]ind by [G]rep in ~/.config' })
 
       -- TODO: test using dropdown
-      vim.keymap.set('n', '<leader>scc', function()
-        builtin.live_grep(require('telescope.themes').get_dropdown {
-          winblend = 10,
-          previewer = true,
-          cwd = vim.fn.expand '~/.config',
-          prompt_title = '[F]ind by [G]rep in ~/.config',
-        })
-      end, { desc = '[F]ind by [G]rep in ~/.config' })
+      -- vim.keymap.set('n', '<leader>scc', function()
+      --   builtin.live_grep(require('telescope.themes').get_dropdown {
+      --     winblend = 10,
+      --     previewer = true,
+      --     cwd = vim.fn.expand '~/.config',
+      --     prompt_title = '[F]ind by [G]rep in ~/.config',
+      --   })
+      -- end, { desc = '[F]ind by [G]rep in ~/.config' })
 
       vim.keymap.set('n', '<leader>sn', function()
         builtin.live_grep {
@@ -357,22 +398,50 @@ return {
         }
       end, { desc = '[S]earch by Grep in [N]vim files' })
 
-      vim.keymap.set('n', '<leader>stt', function()
-        builtin.live_grep {
-          cwd = vim.fn.expand '~/.config/tmux',
-          prompt_title = '[S]earch by Grep in [T]mux files',
-        }
-      end, { desc = '[S]earch by Grep in [T]mux files' })
-
-      vim.keymap.set('n', '<leader>stn', function()
+      vim.keymap.set('n', '<leader>st', function()
         builtin.live_grep {
           search_dirs = {
-            vim.fn.stdpath 'config',
-            vim.fn.expand '~/.config/tmux',
+            vim.fn.stdpath 'config',                      -- nvim
+            vim.fn.expand '~/.config/tmux',               -- tmux
+            vim.fn.expand '~/.config/ghostty',            -- ghostty
+            vim.fn.expand '~/.ssh/config',                -- ssh
+            vim.fn.expand '~/.config/gh/config.yml',      -- github cli
+            vim.fn.expand '~/.config/.claude',            -- claude code
+            vim.fn.expand '~/.config/opencode',           -- opencode cli
+            vim.fn.expand '~/.gemini',                    -- gemini
+            vim.fn.expand '~/.config/gemini.md',          -- gemini config
+            vim.fn.expand '~/.config/karabiner.edn',      -- karabiner
+            vim.fn.expand '~/.config/oh-my-zsh/custom',   -- all custom zsh files
+            vim.fn.expand '~/.zshrc',                     -- zsh configs
+            vim.fn.expand '~/.zshenv',
+            vim.fn.expand '~/.zprofile',
+            vim.fn.expand '~/.bash_profile',
+            vim.fn.expand '~/.gitconfig',                 -- git configs
+            vim.fn.expand '~/.gitignore_global',
+            vim.fn.expand '~/.vimrc',                     -- vim
           },
-          prompt_title = '[S]earch by Grep [N]eovim & [T]mux files',
+          prompt_title = '[S]earch by Grep in [N]eovim, [T]mux, Ghostty & config files',
         }
-      end, { desc = '[S]earch by Grep [N]eovim & [T]mux files' })
+      end, { desc = '[S]earch by Grep in [N]eovim, [T]mux, Ghostty & config files' })
+
+      vim.keymap.set('n', '<leader>sai', function()
+        builtin.live_grep {
+          search_dirs = {
+            vim.fn.expand '~/Projects',
+            vim.fn.expand '~/projects',
+            vim.fn.expand '~/code',
+          },
+          prompt_title = '[S]earch content in [A]I [I]nstruction files',
+          additional_args = function()
+            return {
+              '--glob-case-insensitive',
+              '--glob', 'CLAUDE.md',
+              '--glob', 'gemini.md',
+              '--glob', 'agent.md',
+            }
+          end,
+        }
+      end, { desc = '[S]earch content in [A]I [I]nstruction files across projects' })
 
       vim.keymap.set('n', '<leader>sh', function()
         builtin.live_grep {
@@ -380,6 +449,20 @@ return {
           prompt_title = '[S]earch by Grep in ~/',
         }
       end, { desc = '[S]earch by Grep in [H]ome' })
+
+      vim.keymap.set('n', '<leader>sz', function()
+        builtin.live_grep {
+          search_dirs = {
+            vim.fn.expand '~/.zshrc',
+            vim.fn.expand '~/.zshenv',
+            vim.fn.expand '~/.zprofile',
+            vim.fn.expand '~/.bash_profile',
+            vim.fn.expand '~/.config/oh-my-zsh/custom/aliases.zsh',
+            vim.fn.expand '~/.config/oh-my-zsh/custom/evan_robbyrussell_theme.zsh-theme',
+          },
+          prompt_title = '[S]earch by Grep in [Z]sh/shell config files',
+        }
+      end, { desc = '[S]earch by Grep in [Z]sh/shell config files' })
 
       -- vim.keymap.set('n', '<leader>so', function()
       --   builtin.live_grep {

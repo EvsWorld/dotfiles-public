@@ -1,6 +1,9 @@
 # Profiling - temporary
 # zmodload zsh/zprof
 
+# TODO: figure out how to change binding for the current interactive search being launched 
+# every time i press "escape+c"
+
 # If you come from bash you might have to change your $PATH.
 # export PATH=$HOME/bin:/usr/local/bin:$PATH
 
@@ -31,6 +34,33 @@ source $HOME/.zshenv
 #  NOTE:  which aliases.zsh file should i source? # Source your custom aliases.
 # By sourcing it here, all your custom aliases will be available after oh-my-zsh is initialized.
 source $ZSH_CUSTOM/aliases.zsh
+
+# FIX: supposed to help with navigating between prompts
+# OSC 133 prompt marking for tmux navigation
+# Using hook system to avoid conflicts with oh-my-zsh theme
+# osc133_precmd() {
+#   if [[ -n "$TMUX" ]]; then
+#     print -Pn "\ePtmux;\e\e]133;A\e\e\\\\"
+#   else
+#     print -Pn "\e]133;A\e\\"
+#   fi
+# }
+# osc133_precmd_end() {
+#   if [[ -n "$TMUX" ]]; then
+#     print -Pn "\ePtmux;\e\e]133;B\e\e\\\\"
+#   else
+#     print -Pn "\e]133;B\e\\"
+#   fi
+# }
+# osc133_preexec() {
+#   if [[ -n "$TMUX" ]]; then
+#     print -Pn "\ePtmux;\e\e]133;C\e\e\\\\"
+#   else
+#     print -Pn "\e]133;C\e\\"
+#   fi
+# }
+# precmd_functions+=(osc133_precmd osc133_precmd_end)
+# preexec_functions+=(osc133_preexec)
 
 # python env pyenv setup
 eval "$(pyenv init -)"
@@ -75,6 +105,9 @@ setopt sharehistory
 #  *****************************************************************************************
 # User configurations: These are placed after sourcing to allow customization and override of settings.
 
+# Prevent Control+D from exiting the shell
+export IGNOREEOF=999
+
 # TODO: set up the fzf args eval thing
 
 # export MANPATH="/usr/local/man:$MANPATH"
@@ -106,7 +139,8 @@ export NVM_DIR="$HOME/.nvm"
 bindkey "^R" history-incremental-search-backward
 
 #zsh autosuggestions
-bindkey '^ ' autosuggest-accept
+# DELETE: 
+# bindkey '^ ' autosuggest-accept
 
 if [[ $(hostname) = "YOUR-HOSTNAME.local" ]]; then
 	# Add TeX binaries to PATH
