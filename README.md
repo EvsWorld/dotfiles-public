@@ -1,5 +1,9 @@
 # Public Dotfiles
 
+test Jan 25 Sun  22:10
+test Jan 25 Sun  22:14
+test 2026_01_25_T22_16 
+
 Periodic snapshots of my personal dotfiles, sanitized for public sharing.
 
 ## Included Files
@@ -99,12 +103,37 @@ If you want to fork this repo and maintain your own public dotfiles:
 
 4. **Run the sync:**
    ```bash
+   # With timestamp commit message (default):
    ./sync-dotfiles.sh
-   # Or: git sync-dotfiles
    # Or: cfg publish-dotfiles
+
+   # With custom commit message:
+   ./sync-dotfiles.sh "Add new vim keybindings"
    ```
 
 The `.sync-config` file is gitignored, so your personal info stays private.
+
+## Unified Commit Workflow (Advanced)
+
+If you use a bare git repo for your private dotfiles (like the `cfg` setup), you can create a unified command that commits to both repos at once.
+
+**The `ccump` shell function** (cfg commit + publish):
+```bash
+ccump "Add new vim keybindings"
+```
+
+This will:
+1. Stage tracked files and commit to your private cfg bare repo
+2. Run the sync script to sanitize and commit to this public repo
+3. Use the same commit message for both commits
+
+After running `ccump`, you still need to manually push both repos:
+```bash
+cfg push                                    # Push private repo
+cd ~/Projects/dotfilesPublish && git push   # Push public repo
+```
+
+See the `ccump()` function in the dotfiles for implementation details.
 
 ## License
 

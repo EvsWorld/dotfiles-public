@@ -2,6 +2,7 @@
 # alias scce='source venv/bin/activate'
 # TEST: cwip alias test comment
 
+
 # *********** pgadmin *********************
 alias pgadmin='docker run \
   -p 5050:80 \
@@ -380,6 +381,59 @@ clo() {
     cfg log --oneline  --color=always  --decorate | head -n 15 | tee /dev/tty
 }
 
+# Unified commit to both private bare repo and public dotfiles repo
+ccump() {
+    if [ -z "$1" ]; then
+        echo "Error: Commit message required"
+        echo "Usage: ccump \"your commit message\""
+        return 1
+    fi
+
+    local commit_msg="$1"
+
+    echo "========================================="
+    echo "Step 1: Committing to private cfg repo"
+    echo "========================================="
+
+    # Stage tracked files and commit to cfg bare repo
+    if cfg add -u && cfg commit -m "$commit_msg"; then
+        echo "✓ Private repo commit successful"
+        echo ""
+
+        echo "========================================="
+        echo "Step 2: Syncing to public repo"
+        echo "========================================="
+
+        # Run the sync script with the commit message
+        # Note: cfg publish-dotfiles is a git alias that runs the script
+        # Git aliases starting with '!' pass arguments, so this passes the message
+        if cfg publish-dotfiles "$commit_msg"; then
+            echo ""
+            echo "========================================="
+            echo "✓ SUCCESS: Both repos updated!"
+            echo "========================================="
+            echo ""
+            echo "Commit message: $commit_msg"
+            echo ""
+            echo "Next steps:"
+            echo "  • Review private changes: cfg log -1 --stat"
+            echo "  • Review public changes: cd ~/Projects/dotfilesPublish && git log -1 --stat"
+            echo "  • Push private: cfg push"
+            echo "  • Push public: cd ~/Projects/dotfilesPublish && git push"
+        else
+            echo ""
+            echo "⚠️  WARNING: Private commit succeeded but public sync failed"
+            echo "Private repo is updated, but public repo may need manual sync"
+            return 1
+        fi
+    else
+        echo ""
+        echo "❌ ERROR: Private repo commit failed"
+        echo "No changes made to either repository"
+        return 1
+    fi
+}
+
 #  the dates are good. color good. the solid blue for the commit message
 #  works for this. bc the file data is black
 clf() {
@@ -387,6 +441,9 @@ clf() {
     echo ""
     cfg log --oneline --decorate --stat --color=always --date=format:'%a %Y-%m-%d %H:%M:%S' --pretty=format:'%C(yellow)%h%C(reset) %C(green)(%ad)%C(reset) %C(bold blue)%s%C(reset)%C(auto)%d%C(reset)'
 }
+
+# TODO: make alias for dotfiles publish
+
 
 # ************ Experiments ****************************
 # activating venv. (not used)

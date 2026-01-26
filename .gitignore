@@ -20,4 +20,5 @@
 
 # other files to ignore
 CLAUDE.md
-README.md
+# Ignore project planning/instruction READMEs, but keep dotfiles documentation
+# README.md in root and dotfiles/* should be tracked

@@ -6,6 +6,14 @@
 
 set -e  # Exit on error
 
+# Accept optional commit message parameter
+CUSTOM_COMMIT_MSG="$1"
+
+# Unset git environment variables that might be inherited from cfg bare repo alias
+# This ensures git commands in this script operate on the local .git directory
+unset GIT_DIR
+unset GIT_WORK_TREE
+
 # Auto-detect repository directory
 REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$REPO_DIR"
@@ -159,10 +167,15 @@ if [ -d .git ]; then
     if git diff --cached --quiet; then
         echo "✓ No changes to commit - files are already up to date"
     else
-        # Commit with timestamp
-        timestamp=$(date "+%Y-%m-%d %H:%M:%S")
-        git commit -m "Update dotfiles snapshot - $timestamp"
-        echo "✓ Changes committed with timestamp: $timestamp"
+        # Use custom message if provided, otherwise use timestamp
+        if [ -n "$CUSTOM_COMMIT_MSG" ]; then
+            COMMIT_MSG="$CUSTOM_COMMIT_MSG"
+        else
+            COMMIT_MSG="Update dotfiles snapshot - $(date '+%Y-%m-%d %H:%M:%S')"
+        fi
+
+        git commit -m "$COMMIT_MSG"
+        echo "✓ Changes committed: $COMMIT_MSG"
     fi
 else
     echo "⚠️  WARNING: Not a git repository. Run 'git init' first."

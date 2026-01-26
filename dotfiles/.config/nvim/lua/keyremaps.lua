@@ -180,7 +180,7 @@ vim.keymap.set({ 'v', 'x' }, '<leader>Y', function()
   local result = '## ' .. filepath .. ':' .. line_range
   -- Set the clipboard register with our formatted result
   vim.fn.setreg('+', result)
-  print('Copied: ' .. filepath .. ':' .. line_range .. ' with selected text')
+  vim.notify('Copied: ' .. filepath .. ':' .. line_range .. ' with selected text', vim.log.levels.INFO)
 end, { desc = '[Y]ank file path, line range' })
 
 vim.keymap.set({ 'n' }, '<leader>y', function()
@@ -197,7 +197,7 @@ vim.keymap.set({ 'n' }, '<leader>y', function()
   local result = selected_text .. '\n\n' .. '## ' .. filepath .. ':' .. line_num
   -- Set the clipboard register with our formatted result
   vim.fn.setreg('+', result)
-  print('Copied: ' .. filepath .. ':' .. line_num .. ' with selected text')
+  vim.notify('Copied: ' .. filepath .. ':' .. line_num .. ' with selected text', vim.log.levels.INFO)
 end, { desc = '[Y]ank file path, line range, and selected text' })
 
 vim.keymap.set({ 'v', 'x' }, '<leader>y', function()
@@ -213,7 +213,7 @@ vim.keymap.set({ 'v', 'x' }, '<leader>y', function()
   local result = selected_text .. '\n\n' .. '## ' .. filepath .. ':' .. line_range
   -- Set the clipboard register with our formatted result
   vim.fn.setreg('+', result)
-  print('Copied: ' .. filepath .. ':' .. line_range .. ' with selected text')
+  vim.notify('Copied: ' .. filepath .. ':' .. line_range .. ' with selected text', vim.log.levels.INFO)
 end, { desc = '[Y]ank file path, line range, and selected text' })
 
 -- ERROR: not working right now

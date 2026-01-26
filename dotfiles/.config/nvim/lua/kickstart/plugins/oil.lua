@@ -78,7 +78,7 @@ return {
         ['<C-l>'] = false,
         ['<C-k>'] = false,
         ['<C-j>'] = false,
-        ['<leader>Y'] = {
+        ['<leader>y'] = {
           callback = function()
             local oil = require 'oil'
             local entry = oil.get_cursor_entry()
