@@ -16,7 +16,7 @@ return {
         dim_inactive = {
           enabled = true, -- dims the background color of inactive window
           shade = 'dark',
-          percentage = 0.35, -- percentage of the shade to apply to the inactive window
+          percentage = 0.55, -- percentage of the shade to apply to the inactive window
         },
         no_italic = false, -- Force no italic
         no_bold = false, -- Force no bold
@@ -55,22 +55,28 @@ return {
       -- Load the colorscheme here.
       vim.cmd.colorscheme 'catppuccin'
 
-      -- Red border for active window via per-window highlight override.
-      -- Set highlight after colorscheme loads so the palette is available.
-      local palette = require('catppuccin.palettes').get_palette()
-      vim.api.nvim_set_hl(0, 'ActiveWinSeparator', { fg = palette.red, bold = true })
+      -- Override NormalNC for much stronger inactive split contrast.
+      -- Active split bg = #1e1e2e; #0d0d18 is roughly half the brightness.
+      vim.api.nvim_set_hl(0, 'NormalNC', { bg = '#0d0d18' })
 
-      local active_win_group = vim.api.nvim_create_augroup('ActiveWindowBorder', { clear = true })
-      vim.api.nvim_create_autocmd({ 'WinEnter', 'BufEnter' }, {
-        group = active_win_group,
+      -- Slightly dim entire nvim instance when tmux focus moves to another pane.
+      -- Requires tmux `focus-events on`. Adjust bg to taste — #141425 is noticeable but not harsh.
+      vim.api.nvim_set_hl(0, 'NormalUnfocused', { bg = '#141425' })
+      local focus_group = vim.api.nvim_create_augroup('FocusDim', { clear = true })
+      vim.api.nvim_create_autocmd('FocusLost', {
+        group = focus_group,
         callback = function()
-          vim.opt_local.winhighlight = 'WinSeparator:ActiveWinSeparator'
+          for _, win in ipairs(vim.api.nvim_list_wins()) do
+            vim.api.nvim_win_set_option(win, 'winhighlight', 'Normal:NormalUnfocused,CursorLine:NormalUnfocused')
+          end
         end,
       })
-      vim.api.nvim_create_autocmd({ 'WinLeave' }, {
-        group = active_win_group,
+      vim.api.nvim_create_autocmd('FocusGained', {
+        group = focus_group,
         callback = function()
-          vim.opt_local.winhighlight = ''
+          for _, win in ipairs(vim.api.nvim_list_wins()) do
+            vim.api.nvim_win_set_option(win, 'winhighlight', '')
+          end
         end,
       })
     end,

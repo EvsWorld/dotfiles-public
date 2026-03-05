@@ -711,7 +711,7 @@ clf() {
     cfg log --oneline --decorate --stat --color=always --date=format:'%a %Y-%m-%d %H:%M:%S' --pretty=format:'%C(yellow)%h%C(reset) %C(green)(%ad)%C(reset) %C(bold blue)%s%C(reset)%C(auto)%d%C(reset)'
 }
 
-# TODO: make alias for dotfiles publish
+alias cpub='cfg publish-dotfiles'          # Sync & commit public dotfiles
 
 
 # ************ Experiments ****************************

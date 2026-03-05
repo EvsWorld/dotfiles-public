@@ -498,6 +498,20 @@ return {
         }
       end, { desc = '[S]earch by Grep in [Z]sh/shell config files' })
 
+      vim.keymap.set('n', '<leader>fz', function()
+        builtin.find_files {
+          search_dirs = {
+            vim.fn.expand '~/.zshrc',
+            vim.fn.expand '~/.zshenv',
+            vim.fn.expand '~/.zprofile',
+            vim.fn.expand '~/.bash_profile',
+            vim.fn.expand '~/.config/oh-my-zsh/custom/aliases.zsh',
+            vim.fn.expand '~/.config/oh-my-zsh/custom/evan_robbyrussell_theme.zsh-theme',
+          },
+          prompt_title = '[F]ind [Z]sh/shell config files',
+        }
+      end, { desc = '[F]ind [Z]sh/shell config files' })
+
       -- -- DELETE: ??
       -- vim.keymap.set('n', '<leader>example', function()
       --   builtin.live_grep {
