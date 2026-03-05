@@ -53,24 +53,23 @@ return {
       --   require('mini.ai').select_textobject('a', 'l')
       -- end, { desc = 'Around entire line' })
 
-      -- TODO: turn off s substitute mcommand in normal mode?
-      -- its getting triggeredby accident If I don't execute ss or sd or sr fast enough.
-      -- - ssiw) - [S]urround [S]add [I]nner [W]ord [)]Paren
-      -- - sd'   - [S]urround [D]elete [']quotes
-      -- - sr)'  - [S]urround [R]eplace [)] [']
+      -- Using vim-surround-style mappings (no conflict with native 's' command)
+      -- - ysiw) - [Y]ou [S]urround [I]nner [W]ord with [)]Paren
+      -- - ds'   - [D]elete [S]urround [']quotes
+      -- - cs)'  - [C]hange [S]urround [)] to [']
       require('mini.surround').setup {
         mappings = {
-          add = 'ss', -- Add surrounding in Normal and Visual modes  (works)
-          delete = 'sd', -- Delete surrounding
-          find = 'sf', -- Find surrounding (to the right)
-          find_left = 'sF', -- Find surrounding (to the left)
-          highlight = 'sh', -- Highlight surrounding
-          replace = 'sc', -- Replace surrounding
+          add = 'ys',            -- [Y]ou [S]urround - add surrounding
+          delete = 'ds',         -- [D]elete [S]urround
+          find = 'sf',           -- Find surrounding (to the right)
+          find_left = 'sF',      -- Find surrounding (to the left)
+          highlight = 'sh',      -- Highlight surrounding
+          replace = 'cs',        -- [C]hange [S]urround - replace surrounding
           update_n_lines = 'sn', -- Update `n_lines`
         },
       }
 
-      vim.keymap.set('v', 'S', 'ss', { desc = 'Surround visual selection', remap = true })
+      vim.keymap.set('v', 'S', 'ys', { desc = 'Surround visual selection', remap = true })
 
       -- NOTE:: yank some text then go to a word and do siw to replace that word with the yanked text. then go to another word and . repeat it
       -- yank a line (yy), then go to a line and do rr, or ril to replace that line with the yanked text
@@ -81,7 +80,7 @@ return {
       -- 2025_08_07: using r for substiture prefix, and s works as single character replace (the old r function)
       -- Examples of usage:
       -- 1. yiw (yank word) -> riw (substitute inner word) -> . (repeat on next word)
-      -- 2. yy (yank line) -> rs (substitute line) -> . (repeat on next line)
+      -- 2. yy (yank line) -> rr (substitute line) -> . (repeat on next line)
       -- 3. yy (yank line) -> ril (substitute inner line) -> . (repeat)
 
       require('mini.operators').setup {

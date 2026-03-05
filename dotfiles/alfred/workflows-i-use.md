@@ -2,7 +2,7 @@
 
 A showcase of the Alfred workflows that power my productivity. Feel free to explore and discover new workflows!
 
-Last updated: 2026-01-26 16:17:12
+Last updated: 2026-03-05 02:53:28
 
 Total workflows: 110
 
@@ -16,7 +16,7 @@ Total workflows: 110
 | TerminalFinder | de.leenno.terminalfinder | Open currently selected Finder (or Path Finder) window in Terminal (or iTerm2) and vice versa |  |
 | Alzibro | alzibro | Browse ZIP archives and extract individual files | 1.4 |
 | Color Picker | com.zeitlings.colorpicker | Color Picker: hex, rgb, hsl | 1.3.4 |
-| Search ALL the docs! | de.chris-grieser.doc-searches | Search hundreds of documentation sites via DevDocs and other sources. | 2.23.1 |
+| Search ALL the docs! | de.chris-grieser.doc-searches | Search hundreds of documentation sites via DevDocs and other sources. | 2.24.1 |
 | WHOIS Lookup | com.firefingers21.whoislookup | Perform a WHOIS lookup in Alfred | 2024.7 |
 | Epoch Converter | snooze92.epoch.converter | Make timestamps human-readable | 1.0.4 |
 | Agenda - Reminders and Calendar Events | com.rknightuk.agenda | Manage Reminders and Calandar Events | 1.0.1 |

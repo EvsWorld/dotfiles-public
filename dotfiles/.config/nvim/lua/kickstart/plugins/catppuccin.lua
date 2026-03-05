@@ -54,6 +54,25 @@ return {
 
       -- Load the colorscheme here.
       vim.cmd.colorscheme 'catppuccin'
+
+      -- Red border for active window via per-window highlight override.
+      -- Set highlight after colorscheme loads so the palette is available.
+      local palette = require('catppuccin.palettes').get_palette()
+      vim.api.nvim_set_hl(0, 'ActiveWinSeparator', { fg = palette.red, bold = true })
+
+      local active_win_group = vim.api.nvim_create_augroup('ActiveWindowBorder', { clear = true })
+      vim.api.nvim_create_autocmd({ 'WinEnter', 'BufEnter' }, {
+        group = active_win_group,
+        callback = function()
+          vim.opt_local.winhighlight = 'WinSeparator:ActiveWinSeparator'
+        end,
+      })
+      vim.api.nvim_create_autocmd({ 'WinLeave' }, {
+        group = active_win_group,
+        callback = function()
+          vim.opt_local.winhighlight = ''
+        end,
+      })
     end,
   },
 }

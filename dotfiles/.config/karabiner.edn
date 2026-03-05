@@ -22,7 +22,7 @@
                         ;; to_if_alone_timeout_milliseconds (def: 1000)
                         ;; good to keep it short so if youre pressing a modifier but change your mind, you can release and
                         ;; it wont trigger the alone command
-                      :alone   500
+                      :alone   200
 
                         ;; key is fired twice when 500 ms is elapsed (otherwise seen as a hold command)
                         ;; A timeout before key repeat starts firing. If you hold "o" for 500+ ms, then it will type "oooooo" (i think it might work the other way actually)
@@ -1093,6 +1093,11 @@
          :rules [;
                  :anki
                  [:!CSc :!COSc]
+                 [:5 :!S2]                   ;; suspend card
+                 [:!C1 :!C3]                 ;; flag card green
+                 [:!C2 :!C1]                 ;; flag card red
+                 ; [:r :!S2]
+
                  ;;;;;
                  ]
                ;
@@ -1821,7 +1826,7 @@
                  ;; ***   shift-left-hand numbers ******
                  [:!Sgrave_accent_and_tilde :left_arrow]
                  [:!S1 :down_arrow]
-                 [:!S2 :up_arrow]
+                 [:!S2 :up_arrow [:!anki]]   ; preserve normal @ behavior for anki for left wand suspending cards
                  [:!S3 :right_arrow]
                  [:!S5 [:beep]]        ;; allow for left hand arrow key mode
                  [:!S8  [:beep]]       ;; training wheels astrisk

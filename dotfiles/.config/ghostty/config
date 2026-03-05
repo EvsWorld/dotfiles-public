@@ -71,7 +71,7 @@ window-save-state = always
 macos-option-as-alt = true
 
 # SCROLLING & PERFORMANCE
-scrollback-limit = 100000
+scrollback-limit = 10000
 
 # SHELL
 shell-integration = zsh

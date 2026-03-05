@@ -5,11 +5,10 @@ return {
   config = function()
     require('git-conflict').setup {
       default_mappings = {
-				-- TODO:  change this so doesnt conflict with color plugin
-        ours = '<leader>6o',
-        theirs = '<leader>6t',
-        none = '<leader>60',
-        both = '<leader>6b',
+        ours = '<leader>gxo',
+        theirs = '<leader>gxt',
+        none = '<leader>gxn',
+        both = '<leader>gxa',
         next = ']x',
         prev = '[x',
       },
@@ -27,7 +26,7 @@ return {
     }
 
     -- Additional keybindings
-    vim.keymap.set('n', '<leader>6q', '<cmd>GitConflictListQf<cr>', { desc = '[C]onflict list [Q]uickfix' })
-    vim.keymap.set('n', '<leader>6r', '<cmd>GitConflictRefresh<cr>', { desc = '[C]onflict [R]efresh' })
+    vim.keymap.set('n', '<leader>gxq', '<cmd>GitConflictListQf<cr>', { desc = '[G]it confli[X]t [Q]uickfix' })
+    vim.keymap.set('n', '<leader>gxr', '<cmd>GitConflictRefresh<cr>', { desc = '[G]it confli[X]t [R]efresh' })
   end,
 }

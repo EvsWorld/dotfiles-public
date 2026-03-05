@@ -330,7 +330,7 @@ return {
         --         pylsp_mypy = {
         --           enabled = true,
         --           live_mode = true, -- Real-time diagnostics as you type
-        --           dmypy = false,    -- Don't use daemon (simpler setup)
+        --           dmypy = false, -- Don't use daemon (simpler setup)
         --         },
         --
         --         -- Keep LSP features (completions, hover, etc.)
@@ -343,6 +343,7 @@ return {
         --     },
         --   },
         -- },
+
         -- rust_analyzer = {},
         -- ... etc. See `:help lspconfig-all` for a list of all the pre-configured LSPs
         --
@@ -363,6 +364,24 @@ return {
               },
               -- You can toggle below to ignore Lua_LS's noisy `missing-fields` warnings
               -- diagnostics = { disable = { 'missing-fields' } },
+              workspace = {
+                checkThirdParty = false,
+                -- Prevent lua_ls from indexing entire HOME directory
+                -- This reduces memory usage from 300+ MB to <100 MB
+                ignoreDir = {
+                  'node_modules',
+                  '.git',
+                  'Library',
+                  'Documents',
+                  'Pictures',
+                  'Music',
+                  'Movies',
+                  'Downloads',
+                  'Desktop',
+                  'Public',
+                  '.Trash',
+                },
+              },
             },
           },
         },
@@ -392,6 +411,7 @@ return {
         'jsonlint', -- Fix existing JSON linting
         'black', -- Python formatter (system-wide fallback)
         'isort', -- Python import sorter (system-wide fallback)
+        'checkmake', -- Makefile linter
       })
       require('mason-tool-installer').setup { ensure_installed = ensure_installed }
 

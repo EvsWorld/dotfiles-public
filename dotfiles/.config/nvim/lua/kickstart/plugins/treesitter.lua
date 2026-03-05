@@ -12,17 +12,36 @@ return {
         'html',
         'lua',
         'luadoc',
+        'make',
         'markdown',
         'markdown_inline',
         'python',
         'query',
         'vim',
         'vimdoc',
+        'javascript',
+        'typescript',
+        'json',
+        'yaml',
+        'toml',
+        'css',
+        'go',
+        'rust',
       },
-      -- Autoinstall languages that are not installed
-      auto_install = true,
+      -- Disable autoinstall to prevent unexpected downloads and reduce memory
+      -- Install specific parsers above instead
+      -- TODO: make sure it installs parsers if i open a file it doesnt have a parser for
+      auto_install = false,
       highlight = {
         enable = true,
+        -- Disable treesitter for large files to prevent freezing/memory issues
+        disable = function(lang, buf)
+          local max_filesize = 100 * 1024 -- 100 KB
+          local ok, stats = pcall(vim.loop.fs_stat, vim.api.nvim_buf_get_name(buf))
+          if ok and stats and stats.size > max_filesize then
+            return true
+          end
+        end,
         -- Some languages depend on vim's regex highlighting system (such as Ruby) for indent rules.
         --  If you are experiencing weird indenting issues, add the language to
         --  the list of additional_vim_regex_highlighting and disabled languages for indent.

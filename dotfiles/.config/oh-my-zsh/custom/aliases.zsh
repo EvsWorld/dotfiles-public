@@ -1,7 +1,276 @@
 # ***** python *****
 # alias scce='source venv/bin/activate'
-# TEST: cwip alias test comment
 
+
+
+# Check memory before running heavy tasks
+pre-heavy() {
+    echo "=== Current Memory State ==="
+    echo "Ghostty: $(ps -o rss= -p $(pgrep Ghostty) 2>/dev/null | awk '{sum+=$1} END {print sum/1024}')MB"
+    echo "Gemini: $(ps -o rss= -p $(pgrep -i gemini) 2>/dev/null | awk '{sum+=$1} END {print sum/1024}')MB"
+    echo "Tmux sessions: $(tmux ls 2>/dev/null | wc -l)"
+    echo "Nvim instances: $(pgrep nvim | wc -l)"
+    echo "==========================="
+}
+
+# Add to ~/.zshrc - warn on startup
+session_count=$(tmux ls 2>/dev/null | wc -l)
+if [ $session_count -gt 10 ]; then
+    echo "🚨 $session_count tmux sessions active. Run: tmux-cleanup"
+fi
+
+# List tmux sessions, highlighting any outside the "core" set
+tmux-sessions() {
+    tmux ls 2>/dev/null || { echo "No tmux sessions running."; return 0; }
+
+    local -a core_sessions=(ConfigGeneral Nvim tmux Claude)
+    local -a extras=()
+
+    while IFS= read -r line; do
+        local name="${line%%:*}"
+        local is_core=false
+        for k in "${core_sessions[@]}"; do
+            [[ "$name" == "$k" ]] && is_core=true && break
+        done
+        [[ "$is_core" == false ]] && extras+=("$name")
+    done < <(tmux ls)
+
+    if [[ ${#extras[@]} -gt 0 ]]; then
+        print "\nProject sessions: ${extras[*]}"
+    fi
+}
+
+# fzf alias search → jump to definition in nvim
+sal() {
+  local selection
+  selection=$(alias | fzf --height 50% --reverse --border --prompt="Alias: ")
+  [[ -z "$selection" ]] && return 0
+  # Extract alias name (everything before the first '=')
+  local name="${selection%%=*}"
+  # Files to search, in priority order (user overrides checked first)
+  local -a alias_files=(
+    "$HOME/.config/oh-my-zsh/custom/aliases.zsh"
+    "$HOME/.zshrc"
+    "$HOME/.oh-my-zsh/plugins/git/git.plugin.zsh"
+  )
+  # Search for alias or function definition, open in nvim at the line
+  local file line match
+  for file in "${alias_files[@]}"; do
+    # Match: alias name=..., alias name ..., unalias name, or name() {
+    match=$(grep -n -E "(alias ${name}=|alias ${name} |unalias ${name}|^[[:space:]]*${name}\(\))" "$file" 2>/dev/null | head -1)
+    if [[ -n "$match" ]]; then
+      line="${match%%:*}"
+      echo "Found: $file:$line"
+      nvim +"$line" "$file"
+      return 0
+    fi
+  done
+  # Fallback: copy alias to clipboard
+  echo "$selection" | pbcopy
+  echo "Definition not found in source files. Alias copied to clipboard."
+}
+
+# fzf keybinding search → jump to definition in nvim
+# Searches across Neovim, Tmux, and Ghostty keybindings
+# Usage: skb
+#   - Opens FZF to search all keybindings
+#   - Select a keybinding to jump to its definition in nvim
+#   - If definition not found, copies keybinding to clipboard
+skb() {
+  # Parse Neovim keybindings from keyremaps.lua
+  _skb_parse_nvim() {
+    local file="$HOME/.config/nvim/lua/keyremaps.lua"
+    [[ ! -f "$file" ]] && return
+
+    # Use perl for more reliable parsing of vim.keymap.set() calls
+    perl -ne '
+      if (/vim\.keymap\.set\((.*)\)/) {
+        my $params = $1;
+
+        # Extract mode (first param - can be string or table)
+        my $mode = "";
+        if ($params =~ /^\s*[\{\[]\s*[\x27"]([^\x27"\}]+)[\x27"]/) {
+          $mode = $1;
+          $mode =~ s/[\x27",\s]+//g;  # Clean up multi-mode
+        } elsif ($params =~ /^\s*[\x27"]([^\x27"]+)[\x27"]/) {
+          $mode = $1;
+        }
+
+        # Extract key (second param)
+        my $key = "";
+        if ($params =~ /,\s*[\x27"]([^\x27"]+)[\x27"]/) {
+          $key = $1;
+        }
+
+        # Extract action (third param - string or function)
+        my $action = "";
+        if ($params =~ /,\s*[\x27"]([^\x27"]+)[\x27"]\s*,\s*[\x27"]([^\x27"]+)[\x27"]/) {
+          $action = $2;
+        } elsif ($params =~ /,\s*[\x27"]([^\x27"]+)[\x27"]\s*,\s*function/) {
+          $action = "function()";
+        } elsif ($params =~ /,\s*[\x27"]([^\x27"]+)[\x27"]\s*,\s*[\x27"]([^\x27"]+)[\x27"]/) {
+          $action = $1;  # Sometimes the action is the second string param
+        }
+
+        # Extract description
+        my $desc = "";
+        if ($params =~ /desc\s*=\s*[\x27"]([^\x27"]+)[\x27"]/) {
+          $desc = $1;
+        }
+
+        # Print if we have mode and key
+        if ($mode && $key) {
+          printf "nvim     | %-15s | %-20s → %-15s | %s\n", $mode, $key, $action, $desc;
+        }
+      }
+    ' "$file"
+  }
+
+  # Parse Tmux keybindings from both config files
+  _skb_parse_tmux() {
+    local files=("$HOME/.config/tmux/tmux.conf" "$HOME/.config/tmux/tmux.reset.conf")
+
+    for file in "${files[@]}"; do
+      [[ ! -f "$file" ]] && continue
+
+      # Extract bind and bind-key lines, skip comments and unbind
+      grep -E "^[[:space:]]*bind(-key)?" "$file" | grep -v "^#" | grep -v "unbind" | while read -r line; do
+        # Determine context (key table)
+        local context="prefix"
+        if echo "$line" | grep -q -- "-n "; then
+          context="root"
+        elif echo "$line" | grep -q -- "-T"; then
+          context=$(echo "$line" | sed -n 's/.*-T[[:space:]]*\([^[:space:]]*\).*/\1/p')
+        fi
+
+        # Remove bind command and options to get key and action
+        local rest=$(echo "$line" | sed -E 's/^[[:space:]]*bind(-key)?[[:space:]]*(-[nT][[:space:]]+[^[:space:]]+[[:space:]]*)?//')
+
+        # Extract key (first token) and action (rest)
+        local key=$(echo "$rest" | awk '{print $1}')
+        local action=$(echo "$rest" | cut -d' ' -f2-)
+
+        # Format key modifiers
+        key=$(echo "$key" | sed 's/^C-/Ctrl+/; s/^M-/Alt+/')
+
+        [[ -n "$key" ]] && printf "tmux     | %-15s | %-20s → %s\n" "$context" "$key" "$action"
+      done
+    done
+  }
+
+  # Parse Ghostty keybindings
+  _skb_parse_ghostty() {
+    local file="$HOME/.config/ghostty/config"
+    [[ ! -f "$file" ]] && return
+
+    # Extract keybind lines (simple format: keybind = key=action)
+    grep "^keybind" "$file" | while read -r line; do
+      # Remove "keybind = " prefix
+      local binding=$(echo "$line" | sed 's/^keybind[[:space:]]*=[[:space:]]*//')
+
+      # Check for global prefix
+      local context=""
+      if echo "$binding" | grep -q "^global:"; then
+        context="global"
+        binding=$(echo "$binding" | sed 's/^global://')
+      fi
+
+      # Split on = to get key and action
+      local key=$(echo "$binding" | cut -d'=' -f1)
+      local action=$(echo "$binding" | cut -d'=' -f2-)
+
+      [[ -n "$key" ]] && printf "ghostty  | %-15s | %-20s → %s\n" "$context" "$key" "$action"
+    done
+  }
+
+  # Search for keybinding definition in a file
+  _skb_search_and_open() {
+    local file="$1"
+    local key="$2"
+    local escaped_key line match
+
+    # Escape special regex characters in the key
+    escaped_key=$(echo "$key" | sed 's/[]\/$*.^[]/\\&/g')
+
+    # Search for the keybinding definition
+    match=$(grep -n "$escaped_key" "$file" 2>/dev/null | head -1)
+
+    if [[ -n "$match" ]]; then
+      line="${match%%:*}"
+      echo "Found: $file:$line"
+      nvim +"$line" "$file"
+      return 0
+    fi
+    return 1
+  }
+
+  # Main function
+  local all_bindings selection tool context key
+
+  # Collect all keybindings
+  all_bindings=$(_skb_parse_nvim; _skb_parse_tmux; _skb_parse_ghostty)
+
+  # Let user select with fzf
+  selection=$(echo "$all_bindings" | fzf --height 50% --reverse --border --prompt="Keybinding: " --delimiter ' | ')
+
+  [[ -z "$selection" ]] && return 0
+
+  # Extract tool, context, and key from selection
+  tool=$(echo "$selection" | cut -d'|' -f1 | xargs)
+  key=$(echo "$selection" | cut -d'|' -f3 | cut -d'→' -f1 | xargs)
+
+  # Search for definition in appropriate file(s)
+  local found=false
+  case "$tool" in
+    nvim)
+      if _skb_search_and_open "$HOME/.config/nvim/lua/keyremaps.lua" "$key"; then
+        found=true
+      fi
+      ;;
+    tmux)
+      # Check both tmux config files
+      if _skb_search_and_open "$HOME/.config/tmux/tmux.reset.conf" "$key"; then
+        found=true
+      elif _skb_search_and_open "$HOME/.config/tmux/tmux.conf" "$key"; then
+        found=true
+      fi
+      ;;
+    ghostty)
+      if _skb_search_and_open "$HOME/.config/ghostty/config" "$key"; then
+        found=true
+      fi
+      ;;
+  esac
+
+  # Fallback: copy to clipboard if not found
+  if [[ "$found" == false ]]; then
+    echo "$selection" | pbcopy
+    echo "Definition not found in source files. Keybinding copied to clipboard."
+  fi
+}
+
+# search available make commands in current project
+# TODO:make this look recursively up for Makefile? right now i get thhis error if im not 
+# in the current dir where the Makefile is:
+# 30 18:19➜scripts(feature/test-zip-upload)✗ m
+# grep: Makefile: No such file or directory
+# >
+#   0/0 ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+#   Select make target
+
+ m() {
+      local target
+      target=$(grep -E '^[a-zA-Z_-]+:.*?## .*$' Makefile | \
+        sort | \
+        awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $1,
+    $2}' | \
+        fzf --ansi --height 40% --reverse --header "Select make target" | \
+        awk '{print $1}')
+   
+      if [[ -n "$target" ]]; then
+        make "$target"
+      fi
+    }
 
 # *********** pgadmin *********************
 alias pgadmin='docker run \
@@ -65,10 +334,10 @@ mcd() {
 alias vimp='NVIM_APPNAME="nvim-theprimeagen" nvim'
 alias vm=nvim
 alias vim=nvim
-alias cco='claude'
-alias ccr='claude --resume'
-alias gmm='gemini --sandbox'
-alias oc='opencode'
+alias cco='pre-heavy && claude'
+alias ccr='pre-heavy && claude --resume'
+alias gmm='pre-heavy && gemini'
+alias oc='pre-heavy && opencode'
 
 alias gk='goku'
 # ******* End programs ********

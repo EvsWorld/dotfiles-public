@@ -12,7 +12,10 @@ return {
         -- text = { 'vale' }, -- TODO: this seems to be causing errors
         json = { 'jsonlint' },
         toml = { 'taplo' },
-        -- python = { 'flake8' },
+        make = { 'checkmake' },
+        -- Python: Use pre-commit hooks (black, isort, mypy) instead of nvim-lint
+        -- This ensures project-specific pyproject.toml config is respected
+        python = {},  -- Explicitly empty to disable all linters
       }
 
       -- To allow other plugins to add linters to require('lint').linters_by_ft,

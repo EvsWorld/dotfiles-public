@@ -40,14 +40,14 @@ return {
           [']x'] = actions.next_conflict,
 
           -- Conflict resolution
-          ['<leader>6o'] = actions.conflict_choose 'ours',
-          ['<leader>6t'] = actions.conflict_choose 'theirs',
-          ['<leader>6b'] = actions.conflict_choose 'base',
-          ['<leader>6a'] = actions.conflict_choose 'all',
-          ['<leader>6O'] = actions.conflict_choose_all 'ours',
-          ['<leader>6T'] = actions.conflict_choose_all 'theirs',
-          ['<leader>6B'] = actions.conflict_choose_all 'base',
-          ['<leader>6A'] = actions.conflict_choose_all 'all',
+          ['<leader>gxo'] = actions.conflict_choose 'ours',
+          ['<leader>gxt'] = actions.conflict_choose 'theirs',
+          ['<leader>gxb'] = actions.conflict_choose 'base',
+          ['<leader>gxa'] = actions.conflict_choose 'all',
+          ['<leader>gxO'] = actions.conflict_choose_all 'ours',
+          ['<leader>gxT'] = actions.conflict_choose_all 'theirs',
+          ['<leader>gxB'] = actions.conflict_choose_all 'base',
+          ['<leader>gxA'] = actions.conflict_choose_all 'all',
 
           -- Navigation
           ['<tab>'] = actions.select_next_entry,
@@ -97,11 +97,11 @@ return {
     }
 
     -- Global keybindings for diffview
-    vim.keymap.set('n', '<leader>gd', '<cmd>DiffviewOpen<cr>', { desc = '[G]it [D]iff view' })
-    vim.keymap.set('n', '<leader>gD', '<cmd>DiffviewOpen HEAD~1<cr>', { desc = '[G]it [D]iff vs last commit' })
-    vim.keymap.set('n', '<leader>gh', '<cmd>DiffviewFileHistory %<cr>', { desc = '[G]it file [H]istory' })
-    vim.keymap.set('n', '<leader>gH', '<cmd>DiffviewFileHistory<cr>', { desc = '[G]it repo [H]istory' })
-    vim.keymap.set('n', '<leader>gm', function()
+    vim.keymap.set('n', '<leader>gvd', '<cmd>DiffviewOpen<cr>', { desc = '[G]it [V]iew [D]iff' })
+    vim.keymap.set('n', '<leader>gvD', '<cmd>DiffviewOpen HEAD~1<cr>', { desc = '[G]it [V]iew [D]iff vs last commit' })
+    vim.keymap.set('n', '<leader>gvh', '<cmd>DiffviewFileHistory %<cr>', { desc = '[G]it [V]iew file [H]istory' })
+    vim.keymap.set('n', '<leader>gvH', '<cmd>DiffviewFileHistory<cr>', { desc = '[G]it [V]iew repo [H]istory' })
+    vim.keymap.set('n', '<leader>gvm', function()
       -- Check if in merge/rebase
       local git_dir = vim.fn.finddir('.git', '.;')
       if git_dir ~= '' then
@@ -109,10 +109,10 @@ return {
       else
         print 'Not in a git repository'
       end
-    end, { desc = '[G]it [M]erge conflicts' })
-    vim.keymap.set('n', '<leader>gq', '<cmd>DiffviewClose<cr>', { desc = '[G]it diff [Q]uit' })
+    end, { desc = '[G]it [V]iew [M]erge conflicts' })
+    vim.keymap.set('n', '<leader>gvq', '<cmd>DiffviewClose<cr>', { desc = '[G]it [V]iew [Q]uit' })
 
     -- Visual mode: compare selected commits
-    vim.keymap.set('v', '<leader>gh', ':DiffviewFileHistory<cr>', { desc = '[G]it file [H]istory (visual range)' })
+    vim.keymap.set('v', '<leader>gvh', ':DiffviewFileHistory<cr>', { desc = '[G]it [V]iew file [H]istory (visual range)' })
   end,
 }

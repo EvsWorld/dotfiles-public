@@ -178,6 +178,22 @@ Enter window operations mode with `Prefix+w`, then:
 
 ---
 
+## Documentation
+
+### Troubleshooting
+- **[TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)** - Comprehensive guide for debugging tmux issues
+  - Common problems and symptoms
+  - Step-by-step debugging techniques
+  - Fix procedures with examples
+  - Preventive measures
+  - Quick reference commands
+  - Plugin-specific issues
+
+### TODO
+- **[TODO.md](docs/TODO.md)** - Planned improvements and known issues
+
+---
+
 ## Resources
 - [Josean Martinez's Guide](https://www.josean.com/posts/tmux-setup)
 - [SessionX Plugin](https://github.com/omerxx/tmux-sessionx)

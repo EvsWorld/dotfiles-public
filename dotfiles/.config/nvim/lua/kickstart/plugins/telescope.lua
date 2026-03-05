@@ -149,7 +149,7 @@ return {
       -- ═══════════════════════════════════════════════════════════════════════════════
       -- GIT INTEGRATION WITH DIFFVIEW
       -- ═══════════════════════════════════════════════════════════════════════════════
-      vim.keymap.set('n', '<leader>gc', function()
+      vim.keymap.set('n', '<leader>gvc', function()
         builtin.git_commits {
           attach_mappings = function(_, map)
             map('i', '<CR>', function(prompt_bufnr)
@@ -160,9 +160,9 @@ return {
             return true
           end,
         }
-      end, { desc = '[G]it [C]ommits (open in diffview)' })
+      end, { desc = '[G]it [V]iew [C]ommits (open in diffview)' })
 
-      vim.keymap.set('n', '<leader>gb', function()
+      vim.keymap.set('n', '<leader>gvb', function()
         builtin.git_branches {
           attach_mappings = function(_, map)
             map('i', '<CR>', function(prompt_bufnr)
@@ -174,7 +174,7 @@ return {
             return true
           end,
         }
-      end, { desc = '[G]it [B]ranches (compare in diffview)' })
+      end, { desc = '[G]it [V]iew [B]ranches (compare in diffview)' })
 
       -- ═══════════════════════════════════════════════════════════════════════════════
       -- META/HELP SEARCHES
@@ -186,7 +186,7 @@ return {
         { desc = '[F]ind [S]elect Telescope' }
       )
       vim.keymap.set('n', '<leader>fr', builtin.resume, { desc = '[F]ind [R]esume' })
-      vim.keymap.set('n', '<leader>fp', builtin.help_tags, { desc = '[F]ind [H]el[P]' })
+      -- vim.keymap.set('n', '<leader>TODO', builtin.help_tags, { desc = '[F]ind [H]el[P]' })
       vim.keymap.set(
         'n',
         '<leader>fd',
@@ -197,9 +197,23 @@ return {
       -- ═══════════════════════════════════════════════════════════════════════════════
       -- FILE SEARCHES
       -- ═══════════════════════════════════════════════════════════════════════════════
+      -- TODO: <leader>fp    for find in projects/ directory
+      vim.keymap.set('n', '<leader>fp', function()
+        builtin.find_files {
+          cwd = vim.fn.expand '~/Projects',
+          prompt_title = '[F]ind files in [P]rojects',
+          hidden = true,
+        }
+      end, { desc = '[F]ind files in [P]rojects' })
+
       vim.keymap.set('n', '<leader>ff', function()
         builtin.find_files { hidden = true }
       end, { desc = '[F]ind [F]iles' })
+
+      -- Duplicate of <leader>ff for faster access (2 keystrokes instead of 3)
+      vim.keymap.set('n', '<leader>,', function()
+        builtin.find_files { hidden = true }
+      end, { desc = 'Find Files (fast: ,)' })
 
       vim.keymap.set('n', '<leader>fF', function()
         require('telescope.builtin').find_files {
@@ -334,12 +348,29 @@ return {
       -- ═══════════════════════════════════════════════════════════════════════════════
       -- LIVE GREP SEARCHES (Type and search as you go)
       -- ═══════════════════════════════════════════════════════════════════════════════
+
+      vim.keymap.set('n', '<leader>sp', function()
+        builtin.live_grep {
+          search_dirs = { vim.fn.expand '~/Projects' },
+          prompt_title = '[S]earch by Grep in [P]rojects',
+        }
+      end, { desc = '[S]earch by Grep in [P]rojects' })
+
       -- QUESTION: When searching using this function, I have to escape brackets (\[) for some reason.
       vim.keymap.set('n', '<leader>ss', function()
         builtin.live_grep {
           prompt_title = '[S]earch by Grep in project',
         }
       end, { desc = '[S]earch by Grep in project' })
+
+      -- Duplicate of <leader>ss for faster access (2 keystrokes instead of 3)
+      vim.keymap.set('n', '<leader>.', function()
+        builtin.live_grep {
+          prompt_title = 'Search by Grep in project',
+        }
+      end, { desc = 'Search by Grep (fast: .)' })
+
+      -- TODO: live grep in ~/.claude/plans  directory
 
       vim.keymap.set('n', '<leader>sS', function()
         builtin.live_grep {
@@ -401,24 +432,24 @@ return {
       vim.keymap.set('n', '<leader>st', function()
         builtin.live_grep {
           search_dirs = {
-            vim.fn.stdpath 'config',                      -- nvim
-            vim.fn.expand '~/.config/tmux',               -- tmux
-            vim.fn.expand '~/.config/ghostty',            -- ghostty
-            vim.fn.expand '~/.ssh/config',                -- ssh
-            vim.fn.expand '~/.config/gh/config.yml',      -- github cli
-            vim.fn.expand '~/.config/.claude',            -- claude code
-            vim.fn.expand '~/.config/opencode',           -- opencode cli
-            vim.fn.expand '~/.gemini',                    -- gemini
-            vim.fn.expand '~/.config/gemini.md',          -- gemini config
-            vim.fn.expand '~/.config/karabiner.edn',      -- karabiner
-            vim.fn.expand '~/.config/oh-my-zsh/custom',   -- all custom zsh files
-            vim.fn.expand '~/.zshrc',                     -- zsh configs
+            vim.fn.stdpath 'config', -- nvim
+            vim.fn.expand '~/.config/tmux', -- tmux
+            vim.fn.expand '~/.config/ghostty', -- ghostty
+            vim.fn.expand '~/.ssh/config', -- ssh
+            vim.fn.expand '~/.config/gh/config.yml', -- github cli
+            vim.fn.expand '~/.config/.claude', -- claude code
+            vim.fn.expand '~/.config/opencode', -- opencode cli
+            vim.fn.expand '~/.gemini', -- gemini
+            vim.fn.expand '~/.config/gemini.md', -- gemini config
+            vim.fn.expand '~/.config/karabiner.edn', -- karabiner
+            vim.fn.expand '~/.config/oh-my-zsh/custom', -- all custom zsh files
+            vim.fn.expand '~/.zshrc', -- zsh configs
             vim.fn.expand '~/.zshenv',
             vim.fn.expand '~/.zprofile',
             vim.fn.expand '~/.bash_profile',
-            vim.fn.expand '~/.gitconfig',                 -- git configs
+            vim.fn.expand '~/.gitconfig', -- git configs
             vim.fn.expand '~/.gitignore_global',
-            vim.fn.expand '~/.vimrc',                     -- vim
+            vim.fn.expand '~/.vimrc', -- vim
           },
           prompt_title = '[S]earch by Grep in [N]eovim, [T]mux, Ghostty & config files',
         }
@@ -435,9 +466,12 @@ return {
           additional_args = function()
             return {
               '--glob-case-insensitive',
-              '--glob', 'CLAUDE.md',
-              '--glob', 'gemini.md',
-              '--glob', 'agent.md',
+              '--glob',
+              'CLAUDE.md',
+              '--glob',
+              'gemini.md',
+              '--glob',
+              'agent.md',
             }
           end,
         }
@@ -446,7 +480,7 @@ return {
       vim.keymap.set('n', '<leader>sh', function()
         builtin.live_grep {
           cwd = vim.fn.expand '~/',
-          prompt_title = '[S]earch by Grep in ~/',
+          prompt_title = '[S]earch by Grep in ~/ ',
         }
       end, { desc = '[S]earch by Grep in [H]ome' })
 
@@ -464,21 +498,23 @@ return {
         }
       end, { desc = '[S]earch by Grep in [Z]sh/shell config files' })
 
-      -- vim.keymap.set('n', '<leader>so', function()
+      -- -- DELETE: ??
+      -- vim.keymap.set('n', '<leader>example', function()
       --   builtin.live_grep {
       --     cwd = vim.fn.expand '~/Documents/ObsidianVault',
       --     prompt_title = '[S]earch by Grep in [O]bsidian',
       --   }
       -- end, { desc = '[S]earch by Grep in [O]bsidian' })
 
-      vim.keymap.set('n', '<leader>shh', function()
-        builtin.live_grep(require('telescope.themes').get_dropdown {
-          winblend = 10,
-          previewer = true,
-          -- cwd = vim.fn.expand '~/.config/nvim',
-          prompt_title = 'Fuzzy search in Nvim files',
-        })
-      end, { desc = '[S]earch by Grep in [H]ome' })
+      -- -- DELETE: ??
+      -- vim.keymap.set('n', '<leader>example', function()
+      --   builtin.live_grep(require('telescope.themes').get_dropdown {
+      --     winblend = 10,
+      --     previewer = true,
+      --     -- cwd = vim.fn.expand '~/.config/nvim',
+      --     prompt_title = 'Fuzzy popup search in Nvim files',
+      --   })
+      -- end, { desc = '[S]earch by Grep in [H]ome' })
 
       vim.keymap.set('n', '<leader>sls', function()
         builtin.live_grep {

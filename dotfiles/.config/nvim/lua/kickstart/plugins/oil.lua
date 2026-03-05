@@ -22,8 +22,8 @@ return {
       columns = {
         'icon',
         -- "permissions",
-        -- "size",
-        -- "mtime",
+        'size',
+        'mtime',
       },
       -- Buffer-local options to use for oil buffers
       buf_options = {
@@ -45,9 +45,7 @@ return {
       -- Send deleted files to the trash instead of permanently deleting them (:help oil-trash)
       delete_to_trash = true,
       skip_confirm_for_simple_edits = false,
-      -- Selecting a new/moved/renamed file or directory will prompt you to save changes first
-      -- (:help prompt_save_on_select_new_entry)
-      prompt_save_on_select_new_entry = false,
+      prompt_save_on_select_new_entry = true,
       -- Oil will automatically delete hidden buffers after this delay
       -- You can set the delay to false to disable cleanup entirely
       -- Note that the cleanup process only starts when none of the oil buffers are currently displayed
@@ -86,7 +84,8 @@ return {
               local dir = oil.get_current_dir()
               local filepath = dir .. entry.name
               vim.fn.setreg('+', filepath)
-              print('Copied: ' .. filepath)
+              -- TODO: change to print??
+              vim.notify('Copied: ' .. filepath, vim.log.levels.INFO)
             end
           end,
           desc = 'Copy file path to clipboard',

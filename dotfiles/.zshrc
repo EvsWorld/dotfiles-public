@@ -1,6 +1,17 @@
 # Profiling - temporary
 # zmodload zsh/zprof
 
+# TODO: how to turn this on so it doesnt error, and so it prevents gemini runnaway memory problem
+# 1. OS-Level Resource Limits (ulimit)
+# You can set a "hard ceiling" on how much memory any single process started from your 
+# shell can consume. Adding this to your .zshrc prevents a process from ever reaching 41GB:
+# ulimit -d 10485760  # Limit process data segment size to 10GB (value in KB)
+# ulimit -v 15728640  # Limit virtual memory to 15GB
+# * Result: If Gemini tries to balloon to 41GB again, the OS will simply kill it (Crash) instead of
+# letting it freeze your Mac.
+
+alias cleanup="~/scripts/gemini-cleanup"
+
 # TODO: figure out how to change binding for the current interactive search being launched 
 # every time i press "escape+c"
 

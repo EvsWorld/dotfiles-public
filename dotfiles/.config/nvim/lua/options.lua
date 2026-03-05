@@ -97,11 +97,9 @@ vim.o.sidescrolloff = 3
 -- Disable line wrapping
 vim.o.wrap = false
 
-vim.o.colorcolumn = '88' -- Match Black
-vim.o.textwidth = 88 -- Match Black
-
--- TODO: is this needed?
-vim.o.textwidth = 90
+-- Visual guide for line length (matches black default)
+vim.o.colorcolumn = '88'  -- Show vertical line at column 88
+-- vim.o.textwidth = 88    -- Don't auto-wrap; let black handle formatting
 vim.o.foldmethod = 'manual'
 
 -- if performing an operation that would fail due to unsaved changes in the buffer (like `:q`),
@@ -117,6 +115,10 @@ if vim.fn.getenv 'TERM_PROGRAM' == 'ghostty' then
 end
 
 -- AutoCommands
+
+-- TODO: for makefiles only keep actual tabs instead of converting to spaces
+-- autocmd FileType make setlocal noexpandtab
+
 local augroup = vim.api.nvim_create_augroup
 local autocmd = vim.api.nvim_create_autocmd
 local no_auto_comments = augroup('NoAutoComments', { clear = true })
@@ -262,6 +264,8 @@ vim.api.nvim_create_autocmd('VimEnter', {
     end
   end,
 })
+
+
 
 -- Folding settings. To work with treesitter
 -- vim.o.foldexpr = 'nvim_treesitter#foldexpr()'

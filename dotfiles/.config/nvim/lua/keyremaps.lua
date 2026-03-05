@@ -16,7 +16,11 @@ function ToggleAutoWrap()
     end
   end
   if not is_allowed then
-    print('Soft wrap is only allowed for markdown and text files (current: ' .. current_ft .. ')')
+    print(
+      'Soft wrap is only allowed for markdown and text files (current: '
+        .. current_ft
+        .. ')'
+    )
     return
   end
   -- Toggle wrap for allowed filetypes
@@ -65,20 +69,20 @@ vim.api.nvim_create_user_command(
   { desc = 'Toggle textwidth wrapping' }
 )
 
+--  DELETE: ??  
 --  See `:help hlsearch`
-vim.keymap.set(
-  'n',
-  '<Return>',
-  '<cmd>nohlsearch<CR>',
-  { desc = 'Clear search highlight' }
-)
+-- vim.keymap.set(
+--   'n',
+--   '<Return>',
+--   '<cmd>nohlsearch<CR>',
+--   { desc = 'Clear search highlight' }
+-- )
 
 --  See `:help wincmd` for a list of all window commands
 
 -- Window splitting
--- Note: this is related to smart-splits which loads last and will override any duplicates 
+-- Note: this is related to smart-splits which loads last and will override any duplicates
 -- First line.   Time: 2025_11_19_T15_19. Lorem ipsum dolor sit amet. -- First line.   Time: 2025_11_19_T15_19. Lorem ipsum dolor sit amet.
-
 
 -- [[ Basic Autocommands ]
 --  See `:help lua-guide-autocommands`
@@ -99,6 +103,15 @@ vim.keymap.set({ 'n', 'v' }, 'K', 'gE', { desc = '(gE) Go to the end of the last
 vim.keymap.set('n', 'n', 'nzv', { desc = 'Go to next match' })
 vim.keymap.set('n', 'N', 'Nzv', { desc = 'Go to previous match' })
 vim.keymap.set('n', 'J', 'mzJ`z', { desc = 'Join line below to current line' })
+
+-- Go to line number (e.g., 42- goes to line 42)
+vim.keymap.set('n', '-', function()
+  if vim.v.count > 0 then
+    vim.cmd('normal! ' .. vim.v.count .. 'G')
+  else
+    vim.cmd('normal! -')
+  end
+end, { desc = 'Go to line (with count) or move up one line' })
 
 -- Good bc doesnt clutter up the jumplist
 -- Scroll half as much as default (1/4 page instead of 1/2)
@@ -165,6 +178,7 @@ vim.keymap.set(
   { silent = true, desc = 'Search in file: selected text' }
 )
 
+-- TODO: add a notify message
 vim.keymap.set('n', '<leader>Y', ':let @+ = expand("%:p")<CR>', {
   silent = true,
   desc = '[Y]ank file path',
@@ -180,7 +194,10 @@ vim.keymap.set({ 'v', 'x' }, '<leader>Y', function()
   local result = '## ' .. filepath .. ':' .. line_range
   -- Set the clipboard register with our formatted result
   vim.fn.setreg('+', result)
-  vim.notify('Copied: ' .. filepath .. ':' .. line_range .. ' with selected text', vim.log.levels.INFO)
+  -- vim.notify(
+  --   'Copied: ' .. filepath .. ':' .. line_range .. ' with selected text',
+  --   vim.log.levels.INFO
+  -- )
 end, { desc = '[Y]ank file path, line range' })
 
 vim.keymap.set({ 'n' }, '<leader>y', function()
@@ -197,7 +214,10 @@ vim.keymap.set({ 'n' }, '<leader>y', function()
   local result = selected_text .. '\n\n' .. '## ' .. filepath .. ':' .. line_num
   -- Set the clipboard register with our formatted result
   vim.fn.setreg('+', result)
-  vim.notify('Copied: ' .. filepath .. ':' .. line_num .. ' with selected text', vim.log.levels.INFO)
+  vim.notify(
+    'Copied: ' .. filepath .. ':' .. line_num .. ' with selected text',
+    vim.log.levels.INFO
+  )
 end, { desc = '[Y]ank file path, line range, and selected text' })
 
 vim.keymap.set({ 'v', 'x' }, '<leader>y', function()
@@ -213,8 +233,26 @@ vim.keymap.set({ 'v', 'x' }, '<leader>y', function()
   local result = selected_text .. '\n\n' .. '## ' .. filepath .. ':' .. line_range
   -- Set the clipboard register with our formatted result
   vim.fn.setreg('+', result)
-  vim.notify('Copied: ' .. filepath .. ':' .. line_range .. ' with selected text', vim.log.levels.INFO)
+  -- vim.notify(
+  --   'Copied: ' .. filepath .. ':' .. line_range .. ' with selected text',
+  --   vim.log.levels.INFO
+  -- )
 end, { desc = '[Y]ank file path, line range, and selected text' })
+
+-- Yank entire document with file path appended
+vim.keymap.set('n', 'yaD', function()
+  -- Yank entire document (this triggers the highlight flash)
+  vim.cmd 'normal! ggVGy'
+  -- Get the yanked text from the unnamed register
+  local document_text = vim.fn.getreg '"'
+  -- Get the absolute file path
+  local filepath = vim.fn.expand '%:p'
+  local result = document_text .. '\n\n## ' .. filepath
+  -- Set the clipboard register with our formatted result
+  vim.fn.setreg('+', result)
+  -- Notify the user
+  -- vim.notify('Copied entire document with file path: ' .. filepath, vim.log.levels.INFO)
+end, { desc = '[Y]ank [A]round [D]ocument with file path' })
 
 -- ERROR: not working right now
 -- vim.keymap.set('n', 'glp', function()
@@ -481,12 +519,13 @@ vim.keymap.set('n', '<leader>kso', function()
   print 'Reloaded nvim config'
 end, { desc = '[S][O]urce nvim config' })
 
-vim.keymap.set(
-  'n',
-  '<leader>kx',
-  '<cmd>!chmod +x %<CR>',
-  { silent = true, desc = 'chmod +x' }
-)
+-- DELETE:
+-- vim.keymap.set(
+--   'n',
+--   '<leader>kx',
+--   '<cmd>!chmod +x %<CR>',
+--   { silent = true, desc = 'chmod +x' }
+-- )
 
 -- Navigation mappings for Karabiner sections
 vim.keymap.set('n', '<leader>kkn', 'G?normal-mappings--<CR>zt')
