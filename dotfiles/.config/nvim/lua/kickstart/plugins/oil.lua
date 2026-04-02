@@ -85,7 +85,7 @@ return {
               local filepath = dir .. entry.name
               vim.fn.setreg('+', filepath)
               -- TODO: change to print??
-              vim.notify('Copied: ' .. filepath, vim.log.levels.INFO)
+              -- vim.notify('Copied: ' .. filepath, vim.log.levels.INFO)
             end
           end,
           desc = 'Copy file path to clipboard',

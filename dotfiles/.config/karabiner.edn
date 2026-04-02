@@ -12,9 +12,10 @@
                       :sim     50
 
                         ;; basically it means time after which the key press is count delayed
-                        ;: Configure "double press" actions timeout, e.g., double-tapping shift to set a mode. I personally ignore this feature.
+                        ;: Configure "double press" actions timeout, e.g., double-tapping shift to set a mode.
                         ;; the window in which you have to press the second key
                         ;; to_delayed_action_delay_milliseconds (def: 500)
+                        ; 150 was worked, but was a little too quick.
                       :delay   150
 
                         ;; hold for 995s and single tap registered; hold for 1005s and seen as modifier
@@ -369,7 +370,7 @@
          ;;  ****** q-q-right hand ******
                  ; y yank when not in terminals?
 
-                 ; [:open_bracket :!Oopen_bracket] ;; proxy for scroll through copilot suggestions 
+                 ; [:open_bracket :!Oopen_bracket] ;; proxy for scroll through copilot suggestions
                  ; [:close_bracket :!Oclose_bracket] ;; proxy for scroll through copilot suggestions
 
                 ;; Page down, workaround for the Keep My Story engine, clipboard, viewer.
@@ -398,7 +399,7 @@
                  ; d is delete
                  [:f [:keyboardMaestro "open: Ghostty"]]
                  ; g to go to top of page
-         ;;  **** q-a-right hand ****  
+         ;;  **** q-a-right hand ****
          ; TODO: make this arrow keys and replace hyper?
                  [:!Ok :!Cup_arrow [:things]]    ;; drag/ move selected items (at least works in things )
                  [:!Oj :!Cdown_arrow [:things]]   ;; drag/ move selected items (at least works in things )
@@ -499,10 +500,10 @@
                  [:m :delete_or_backspace]      ;; delete back by character
 
                 ;; TODO: fix redo
-                 [:u :!Tr :terminalapps]           ;; undo 
-                 [:u :!Cz :!vscodeAndCursor]           ;; undo 
-                 [:r :!Tr :terminalapps]          ;; redo 
-                 [:r :!CSz :!vscodeAndCursor]          ;; redo 
+                 [:u :!Tr :terminalapps]           ;; undo
+                 [:u :!Cz :!vscodeAndCursor]           ;; undo
+                 [:r :!Tr :terminalapps]          ;; redo
+                 [:r :!CSz :!vscodeAndCursor]          ;; redo
 
                  [:comma :delete_forward]           ;; delete forward one character
                  [:period :!Odelete_forward]     ;; delete forward by one word  (does not work in ghostty)
@@ -529,7 +530,7 @@
                  [:slash [:!Cleft_arrow :!CSright_arrow]  [:!vscodeAndCursor]]                 ; Highlight current line
                  [:w [:!Oleft_arrow :!OSright_arrow]]                    ; Highlight word
                  ;; jump to top of page
-                 ;; TODO: doesnt work now in q mode. some alfred chat thing is overriding it  
+                 ;; TODO: doesnt work now in q mode. some alfred chat thing is overriding it
                  [:g  :!Cup_arrow [:!finder :!things]]
                  [:g [:keyboardMaestro "finder - go to top"] [:finder]]
                  [:g  [:escape :down_arrow] [:things]]
@@ -626,7 +627,7 @@
                 ; TODO: a
                 ; TODO: s
                 ; TODO: d
-                ; TODO: f 
+                ; TODO: f
 
         ;;  **** z-a-right hand ****
                 ; TODO: g
@@ -635,8 +636,8 @@
                  [:k [:alfredWorkflow "search-bear" "com.drgrib.bear"]]
                  [:l :!!l]   ;; QUESTION: whats this do?
                  ; TODO: semicolon
-                ; TODO: quote 
-                ;; TODO: return_or_enter 
+                ; TODO: quote
+                ;; TODO: return_or_enter
 
 ;; ***** z-ZXCVB-- *********
          ;;  **** z-z-left hand *****
@@ -819,9 +820,10 @@
                  [:o :!COright_arrow [:obsidian]]
 
                 ;;  [:p :!TOp]                   ;; see control overrides
-                ;;  [:q :!TOq]
+                ;;  [:q :!TOq]     ;; NOTE: q is the q-mode trigger — adding a terminal Ctrl+Q rule here would conflict with q-mode
                 ;;  [:r :!TOr]                   ;; reserved for redo globally and in vscode. ( In vscode its control + r )
-                 [:t :!TOt :!code]
+                 [:t :!Tt [:terminalapps]]    ;; CapsLock+T → Ctrl+T in terminals (fzf file finder)
+                ;;  [:t :!TOt :!code]        ;; removed: was intercepting CapsLock+T in terminal, sending Ctrl+Opt+T instead of plain Ctrl+T, breaking fzf CTRL+T binding
                 ;;  [:w :!TOw]
                  [:grave_accent_and_tilde :!TOgrave_accent_and_tilde [:!code]]    ;; TODO: add exception for :vscodeAndCursor left open for whatever in programs not vscode, chrome, or firefox
 
@@ -856,10 +858,11 @@
                 ;;  TODO: consider using hyper quote as making a line above
                 ;;  [:quote :!TOquote [:vscodeAndCursor]]         ;; used for highlight current line outside of chrome
                 ;;  [:slash :!TOslash]                ;; TODO: not working, available
-                ; DELETE: 
+                ; DELETE:
                  ; [:x :!TOx]    ;; alfred snippets
                 ;;  [:y :!TOy]  ;; mapped to yank
                 ;;  [:z :!TOz]    ;; I think i cant use this for anything bc its a simlayer
+                ;;  TODO: [:z :!Tz [:terminalapps]]  ;; missing — Ctrl+Z (suspend process) not covered in terminals
                  [:v :!Tv [:terminalapps]]
                  [:v :!TOv [:!terminalapps]]        ;; proxy for vscode or possibly others
                  [:spacebar :!Tspacebar]
@@ -1585,10 +1588,12 @@
                  [:!Ca :!Cslash]             ;;  toggle sidebar maybe not its getting in teh way
                  [:!Co :!Co]
                  [:!Ck :!CSk]          ;; make cmd + k do markdown links like everywhere else
-                 [:!Creturn_or_enter [:up_arrow :up_arrow :up_arrow :up_arrow :down_arrow :down_arrow :down_arrow :down_arrow :down_arrow :down_arrow :down_arrow :down_arrow :down_arrow :down_arrow :down_arrow :down_arrow :down_arrow :down_arrow :down_arrow :down_arrow :down_arrow :down_arrow :!Creturn_or_enter]]
+                 ; [:!Creturn_or_enter [:up_arrow :up_arrow :up_arrow :up_arrow :down_arrow :down_arrow :down_arrow :down_arrow :down_arrow :down_arrow :down_arrow :down_arrow :down_arrow :down_arrow :down_arrow :down_arrow :down_arrow :down_arrow :down_arrow :down_arrow :down_arrow :down_arrow :!Creturn_or_enter]]
+                 [:!Creturn_or_enter :return_or_enter]
                  [:!C3 :!C4]           ;; focus anytime tasks
                  [:!C4 :!C3]          ;; focus upcoming tasks
                  [:!Ch :!CSt]      ;; add tags
+                 [:!Ct :!CSt]      ;; add tags
                 ;;  [:!Creturn_or_enter [:downDownReturn]]  ;; TODO doesnt work go to bottom of search and open search all
                 ;;;;;
                  ]}
@@ -1705,8 +1710,8 @@
         ;; TODO: parentheses works great but going to try using for soemthing else
         {:des "space cadet shift   global--"
          :rules [;
-                 [:left_shift :left_shift nil {:alone :hyphen}]     ;; dash (-) 
-                 [:right_shift :right_shift nil {:alone :!S8}]   ;; search (-)
+                 [:left_shift :left_shift nil {:alone :hyphen}]
+                 [:right_shift :right_shift nil {:alone :!Shyphen}]
                 ;;;;;
                  ]}
 
@@ -1729,7 +1734,7 @@
         ;; // NOTE: this has to be down here at bottom so that the hyper mode can override it
         {:des "Global preferences key   - global--"
          :rules [;
-                 ;   command comma beep if the current app is not vscodeAndCursor or things 
+                 ;   command comma beep if the current app is not vscodeAndCursor or things
                  [:!Ccomma [:keyboardMaestro "Label Maker: Print Selected in Things" [:things]]]
                  [:!Ccomma [:keyboardMaestro "Label: Print current line"] [:!things]]
                  [:!CScomma :!Ccomma [:!vscodeAndCursor]]
@@ -1930,12 +1935,6 @@
          :rules [;
                  [:page_up :volume_up]
                  [:page_down :volume_down]
-                ;;;;;
-                 ]}
-
-        {:des "New item left hand global--"
-         :rules [;
-                 [:!Cv :!Cn]  ;; left hand new item
                 ;;;;;
                  ]}
 

@@ -2,7 +2,7 @@
 
 A showcase of the Alfred workflows that power my productivity. Feel free to explore and discover new workflows!
 
-Last updated: 2026-03-05 06:05:16
+Last updated: 2026-04-02 20:03:13
 
 Total workflows: 110
 
@@ -33,7 +33,7 @@ Total workflows: 110
 | Neovim Utilities | de.chris-grieser.neovim-utilities | Search neovim plugins and online :help | 2.4.2 |
 | Wikipedia Suggest | de.chris-grieser.wikipedia | Suggest & Search Wikipedia articles | 1.1.1 |
 | Microphone Control | acidham.alfredworkflow.microphonecontrol | Mute/Unmute Microphone | 1.2.0 |
-| Network Quality | com.alfredapp.vitor.networkquality | Test your internet connection | 2024.3 |
+| Network Quality Speed Wifi | com.alfredapp.vitor.networkquality | Test your internet connection | 2024.3 |
 | GitFred | de.chris-grieser.github | GitHub Assistant | 1.7.5 |
 | Tunnelblick Toggle | com.shau-kote.alfred.tunnelblick-toggle | Check and toggle status of Tunnelblick connections |  |
 | Go to Here | com.paulrudy.go-to-here | Switch Open/Save dialog path to that of an Alfred file/folder selection | 3.0.0 |
@@ -81,11 +81,12 @@ Total workflows: 110
 | TemporaryEmail | com.vitorgalvao.alfred.temporaryemail | Get a temporary email inbox | 21.3 |
 | VSCodeDiff | com.aungmoe.alfred-vscodediff | Show the diff of the last 2 items in clipboard history using VSCode | 1.3.3 |
 | atop | de.chris-grieser.atop | System Monitoring and Process Management | 1.5.3 |
-| Shortcuts | com.alfredapp.vitor.shortcuts | Run installed macOS shortcuts | 2025.1 |
+| Shortcuts | com.alfredapp.vitor.shortcuts | Run installed macOS shortcuts | 2025.2 |
 | Clipboard History Extender | com.alfredapp.vitor.clipboardhistoryextender | Backup and view Clipboard History text items | 2025.1 |
 | Case Converter 3 | fm.fastmail.dfay.caseconverter3 | 3.01 updated for MacOS 12.3 and Python 3 | 3.01a |
 | Karabiner | com.genkisugimoto.alfredworkflow.karabiner | Karabiner Profile Switcher |  |
 | TimeZones | carlosnz.timezones2 | A World Clock for Alfred | 2.17 |
+| Die Roller | app.alfred.ahalbert.dieroller | Generate Random Numbers | 1.0.1 |
 | alfred almanac | giovanni-almanac | weather etc. | 1.5 |
 | Shrieking Chimes | com.vitorgalvao.alfred.shriekingchimes | Set Timers and Alarms | 2024.1 |
 | Movie and TV Show Search | com.mcknight.movies | Search and get info on movies or TV shows | 2.20.0 |
@@ -93,7 +94,7 @@ Total workflows: 110
 | Control Keeping You Awake | com.andreatitolo.kya-alfred | Control Keeping You Awake from Alfred | 1.0.1 |
 | PDF Summarizer | de.chris-grieser.pdf-summarizer | Get summaries of your PDFs via ChatPDF with just one hotkey. | 1.1.1 |
 | Emoji picker | com.github.devnoname120.alfred-emoji-picker | Pick emojis within Alfred — at a blazing-fast speed | 1.1 |
-| Alfred Workflow Devtools | de.chris-grieser.alfred-workflow-devtools | Various utilities and quality-of-life-features for Alfred workflow developers | 1.3.4 |
+| Alfred Workflow Devtools | de.chris-grieser.alfred-workflow-devtools | Various utilities and quality-of-life-features for Alfred workflow developers | 1.7.3 |
 | Phonetic Spelling | giovanni.spelling | A workflow to help the phonetically challenged | 1.3 |
 | Datetime Format Converter | com.morozgrafix.datetime-format-converter | Convert timestamps and datetime strings into various formats | 0.3.0 |
 | Slink | com.thoughtasylum.slink | Alfred Workflow for Brett Terpstra's Search Link | 1.3.2 |
@@ -102,11 +103,10 @@ Total workflows: 110
 | Video Downloader | com.cutepilot.video-downloader | Download videos from YouTube, Vimeo, DailyMotion and more... |  |
 | Things | com.xilopaint.alfredapp.things | Interact with Things | 2.0.2 |
 | Google Hangout | com.jonathanrwallace.google_hangout | Generate a google hangout link via Safari or Google Chrome and place the hangout URL in your clipboard |  |
-| Dente Azul (Bluetooth) | com.vitorgalvao.alfred.denteazul | Toggle bluetooth and paired device connectivity | 2024.1 |
 | Unit Converter | com.alfredapp.vitor.unitconverter | Convert between different units of measurement | 2024.4 |
 | Focus | com.mfaarkrog.alfredapp-workflows.focus | Shortcuts for Focus (heyfocusapp.com) |  |
 | What Unicode character is this? | com.zeitlings.whatunicode | Find out what that string is hiding | 2.0.2 |
-| Mac App Store Search | de.chris-grieser.mas-search | Search apps available in the Mac App Store. | 1.1.0 |
+| Mac App Store Search | de.chris-grieser.mas-search | Search apps available in the Mac App Store. | 1.4.1 |
 | New File | com.zeitlings.mkfile | Create new files post-haste | 1.3.1 |
 | Switch Appearance | com.alfredapp.vitor.switchappearance | Change between Light and Dark Mode | 2024.1 |
 | TerminalFinder - COPY 2025_10_17 Evan Edit | de.leenno.terminalfinderCopyEvan | Open currently selected Finder (or Path Finder) window in Terminal (or iTerm2) and vice versa |  |

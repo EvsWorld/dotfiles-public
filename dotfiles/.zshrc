@@ -3,7 +3,7 @@
 
 # TODO: how to turn this on so it doesnt error, and so it prevents gemini runnaway memory problem
 # 1. OS-Level Resource Limits (ulimit)
-# You can set a "hard ceiling" on how much memory any single process started from your 
+# You can set a "hard ceiling" on how much memory any single process started from your
 # shell can consume. Adding this to your .zshrc prevents a process from ever reaching 41GB:
 # ulimit -d 10485760  # Limit process data segment size to 10GB (value in KB)
 # ulimit -v 15728640  # Limit virtual memory to 15GB
@@ -12,13 +12,10 @@
 
 alias cleanup="~/scripts/gemini-cleanup"
 
-# TODO: figure out how to change binding for the current interactive search being launched 
-# every time i press "escape+c"
-
 # If you come from bash you might have to change your $PATH.
 # export PATH=$HOME/bin:/usr/local/bin:$PATH
 
-# TODO: move this file to ~/.config/.zshrc and make simlink to home dir? 
+# TODO: move this file to ~/.config/.zshrc and make simlink to home dir?
 
 # Path to your oh-my-zsh installation.
 export ZSH="$HOME/.oh-my-zsh"
@@ -31,11 +28,52 @@ ZSH_THEME="evan_robbyrussell_theme"
 # Standard plugins can be found in $ZSH/plugins/
 # Custom plugins may be added to $ZSH_CUSTOM/plugins/
 # Add wisely, as too many plugins slow down shell startup.
-plugins=(git npm macos aliases zsh-autosuggestions zsh-syntax-highlighting fzf)
+plugins=(git npm macos aliases zsh-autosuggestions zsh-syntax-highlighting fzf colored-man-pages tldr)
 
 # Source Oh My Zsh configuration.
 # This loads all the standard oh-my-zsh functionality, including plugins, themes, and other configurations.
 source $ZSH/oh-my-zsh.sh
+
+# Disable fzf's ALT+C directory fuzzy-finder widget.
+# Must be placed AFTER sourcing oh-my-zsh, otherwise the fzf plugin overwrites it.
+# The fzf plugin binds ALT+C to fzf-cd-widget, but many terminals (including Ghostty)
+# send ALT+C as the two-character sequence ESC+C, causing a fuzzy finder to open
+# unexpectedly whenever ESC was pressed quickly followed by C.
+# Rebind fzf's ALT+C directory cd widget to Ctrl+G (ALT+C removed — see above)
+bindkey '^G' fzf-cd-widget
+
+# Make specific letters self-insert when typed after ESC.
+# ESC+letter is treated as ALT+letter (meta sequence) by zsh, which either
+# triggers a widget or gets swallowed as undefined-key. Binding to self-insert
+# makes the letter appear normally.
+bindkey '\ea' self-insert-unmeta
+bindkey '\eb' backward-word  # i think i still need this for my q mode movement mappings to work?
+bindkey '\ec' self-insert-unmeta
+bindkey '\ed' self-insert-unmeta
+bindkey '\ee' self-insert-unmeta
+bindkey '\ef' forward-word  # i think i still need this for my q mode movement mappings to work?
+bindkey '\eg' self-insert-unmeta
+bindkey '\eh' self-insert-unmeta
+bindkey '\ei' self-insert-unmeta
+bindkey '\ej' self-insert-unmeta
+bindkey '\ek' self-insert-unmeta
+bindkey '\el' self-insert-unmeta
+bindkey '\em' self-insert-unmeta
+bindkey '\en' self-insert-unmeta
+bindkey '\eo' self-insert-unmeta
+bindkey '\ep' self-insert-unmeta
+bindkey '\eq' self-insert-unmeta
+bindkey '\er' self-insert-unmeta
+bindkey '\es' self-insert-unmeta
+bindkey '\et' self-insert-unmeta
+bindkey '\eu' self-insert-unmeta
+bindkey '\ev' self-insert-unmeta
+bindkey '\ew' self-insert-unmeta
+bindkey '\ex' self-insert-unmeta
+bindkey '\ey' self-insert-unmeta
+bindkey '\ez' self-insert-unmeta
+
+
 # source $ZSH/plugins/git/git.plugin.zsh
 # source $ZSH_CUSTOM/plugins/zsh-autosuggestions/zsh-autosuggestions.plugin.zsh
 # source $ZSH/plugins/npm/npm.plugin.zsh
@@ -119,8 +157,6 @@ setopt sharehistory
 # Prevent Control+D from exiting the shell
 export IGNOREEOF=999
 
-# TODO: set up the fzf args eval thing
-
 # export MANPATH="/usr/local/man:$MANPATH"
 
 # You may need to manually set your language environment
@@ -147,22 +183,38 @@ export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
 
-bindkey "^R" history-incremental-search-backward
+# fzf handles CTRL+R (fuzzy history search) via the fzf plugin — don't override it here
+# bindkey "^R" history-incremental-search-backward
 
 #zsh autosuggestions
-# DELETE: 
+# DELETE:
 # bindkey '^ ' autosuggest-accept
+
+# TODO: move scripts directory into projects/ directory
+# Auto-sync all executable scripts to ~/.local/bin for global access.
+# Update SCRIPTS_DIR if you move your scripts elsewhere.
+SCRIPTS_DIR="$HOME/scripts"
+_sync_scripts() {
+  local bin_dir="$HOME/.local/bin"
+  find "$SCRIPTS_DIR" -type f -perm +111 \
+    -not -path '*/archive/*' \
+    -not -path '*/.git/*' -exec sh -c '
+    bin_dir="$1"
+    shift
+    for script in "$@"; do
+      name=$(basename "$script" | sed "s/\.[^.]*$//")
+      ln -sf "$script" "$bin_dir/$name" 2>/dev/null
+    done
+  ' _ "$bin_dir" {} + 2>/dev/null
+}
+_sync_scripts
 
 if [[ $(hostname) = "YOUR-HOSTNAME.local" ]]; then
 	# Add TeX binaries to PATH
 	export PATH="/Library/TeX/texbin:$PATH"
-	# put path to scripts on PATH
-	export PATH="$PATH:$HOME/scripts"
-	#  TODO: make sure all scripts in the child directory are also callable from anywhere
-	export PATH="$PATH:$HOME/.config/scripts"
 	# Add OrbStack binaries to PATH (for docker, docker-compose, kubectl)
 	export PATH="$HOME/.orbstack/bin:$PATH"
-	# Claude Code native installation
+	# ~/.local/bin contains auto-synced script symlinks (see _sync_scripts above)
 	export PATH="$HOME/.local/bin:$PATH"
 	export TMUX_CONF="$HOME/.config/tmux/tmux.conf"
 	# export XDG_CONFIG_HOME="$HOME/.config"
@@ -170,4 +222,7 @@ fi
 
 # examples and ideas:
  # https://github.com/codingjerk/dotfiles/blob/main/config/zsh/zshrc
+
+# 1Password shell plugins (injects credentials via Touch ID instead of env vars)
+source ~/.config/op/plugins.sh
 

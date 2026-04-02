@@ -13,11 +13,38 @@ pre-heavy() {
     echo "==========================="
 }
 
-# Add to ~/.zshrc - warn on startup
-session_count=$(tmux ls 2>/dev/null | wc -l)
-if [ $session_count -gt 10 ]; then
-    echo "🚨 $session_count tmux sessions active. Run: tmux-cleanup"
-fi
+# Warn on startup if tmux sessions are excessive or unhealthy
+_tmux_startup_check() {
+    # Guard against double-sourcing (oh-my-zsh + explicit source in .zshrc)
+    (( ${_TMUX_CHECK_RAN:-0} )) && return
+    _TMUX_CHECK_RAN=1
+
+    local session_count
+    session_count=$(tmux ls 2>/dev/null | wc -l | tr -d ' ')
+    [[ $session_count -le 10 ]] && return
+
+    echo "🚨 $session_count tmux sessions active."
+
+    local -a core_sessions=(ConfigGeneral Nvim tmux Claude)
+    local extras=0 name k is_core
+
+    while IFS= read -r line; do
+        name="${line%%:*}"
+        is_core=false
+        for k in "${core_sessions[@]}"; do
+            [[ "$name" == "$k" ]] && is_core=true && break
+        done
+        [[ "$is_core" == false ]] && (( extras++ ))
+    done < <(tmux ls 2>/dev/null)
+
+    # Count dead panes across all sessions in one query
+    local dead_panes
+    dead_panes=$(tmux list-panes -a -F '#{pane_dead}' 2>/dev/null | grep -c '^1') || dead_panes=0
+
+    # [[ $extras -gt 0 ]]     && echo "  ↳ $extras non-core sessions"
+    [[ $dead_panes -gt 0 ]] && echo "  ↳ ⚠️  $dead_panes dead pane(s) — a process may have crashed"
+}
+_tmux_startup_check
 
 # List tmux sessions, highlighting any outside the "core" set
 tmux-sessions() {
@@ -40,8 +67,10 @@ tmux-sessions() {
     fi
 }
 
+
+# TODO: make this also find functions defined in .zshrc or aliases.zsh files
 # fzf alias search → jump to definition in nvim
-sal() {
+sl() {
   local selection
   selection=$(alias | fzf --height 50% --reverse --border --prompt="Alias: ")
   [[ -z "$selection" ]] && return 0
@@ -250,7 +279,7 @@ skb() {
 }
 
 # search available make commands in current project
-# TODO:make this look recursively up for Makefile? right now i get thhis error if im not 
+# TODO:make this look recursively up for Makefile? right now i get thhis error if im not
 # in the current dir where the Makefile is:
 # 30 18:19➜scripts(feature/test-zip-upload)✗ m
 # grep: Makefile: No such file or directory
@@ -266,7 +295,7 @@ skb() {
     $2}' | \
         fzf --ansi --height 40% --reverse --header "Select make target" | \
         awk '{print $1}')
-   
+
       if [[ -n "$target" ]]; then
         make "$target"
       fi
@@ -286,7 +315,7 @@ alias tmnew='tmux new-session -s'    # Create new tmux session: tnew project-nam
 alias tmls='tmux list-sessions'       # List all tmux sessions
 alias tmatt='tmux attach-session -t'  # Attach to session: tatt session-name
 alias tmkill='tmux kill-session -t'   # Kill session: tkill session-name
-# TODO: alias for detach/kill current session (ie Stop being in tmux and just convert the 
+# TODO: alias for detach/kill current session (ie Stop being in tmux and just convert the
 # current ghostty terminal window to be a non-tmux terminal instance)
 
 alias tms="~/.config/tmux/scripts/tmux-sessionizer"
@@ -334,10 +363,11 @@ mcd() {
 alias vimp='NVIM_APPNAME="nvim-theprimeagen" nvim'
 alias vm=nvim
 alias vim=nvim
-alias cco='pre-heavy && claude'
-alias ccr='pre-heavy && claude --resume'
-alias gmm='pre-heavy && gemini'
-alias oc='pre-heavy && opencode'
+alias cco='claude'
+alias ccr='claude --resume'
+alias gmm='gemini'
+alias oc='opencode'
+alias co='codex'
 
 alias gk='goku'
 # ******* End programs ********
@@ -354,6 +384,18 @@ alias rp='source ~/.zshrc'   # Reloads profile
 
 # ********* Searching/Finding/Grepping ************
 alias histgrep='history | grep'
+
+# fzf search, copy path to clipboard, then open in nvim
+ffv() { local f="$(fzf)"; [[ -n "$f" ]] && realpath "$f" | pbcopy && nvim "$f" }
+
+# fzf but just copy the full path to the clipboard
+ff() { local f="$(fzf)"; [[ -n "$f" ]] && realpath "$f" | pbcopy }
+
+# TODO hook up to control+r
+ffhist() {
+  eval $(fc -l 1 | fzf --tac | sed 's/ *[0-9]* *//')
+}
+
 # ********* Searching/Finding/Grepping ************
 
 # *************** Go To ***************************
@@ -424,7 +466,7 @@ alias ftree='tree -v -L 2 --charset utf-8 --filelimit 400'
 alias cp='cp -i'
 alias ln='ln -i'
 alias lsl='ls -1hFA | less'
-alias ccp='pwd|pbcopy'
+alias pwdc='pwd|pbcopy'
 # ***************End Viewing/status related ******************************
 
 
@@ -622,7 +664,7 @@ unalias ccam 2>/dev/null
 alias cwip='cfg add -u && cfg commit --no-verify --no-gpg-sign --message "--wip-- [skip ci]"'
 
 # state all modified tracked files and commit them ( NOTE:  seems to work well)
-alias ccum='cfg add -u && cfg commit -m'     
+alias ccum='cfg add -u && cfg commit -m'
 
 alias ccm='cfg commit -m'
 
@@ -630,7 +672,7 @@ alias ccm='cfg commit -m'
 alias ccan!='cfg commit -v -a --no-edit --amend'
 
 
-# TODO: ?? change to not -a  ?? 
+# TODO: ?? change to not -a  ??
 alias cca!='cfg add -A && cfg commit --verbose --all --amend'
 alias cca='cfg add -A && cfg commit --verbose --all'
 
@@ -713,6 +755,18 @@ clf() {
 
 alias cpub='cfg publish-dotfiles'          # Sync & commit public dotfiles
 
+
+# ************ Projects ****************************
+
+# Populate Memento .env with Google Photos secrets from 1Password
+# Run once after cloning, or after rotating credentials
+memento-env() {
+    local env_file="$HOME/Projects/memento/.env"
+    cp "$HOME/Projects/memento/.env.example" "$env_file"
+    sed -i "" "s|GOOGLE_PHOTOS_CLIENT_ID=.*|GOOGLE_PHOTOS_CLIENT_ID=$(op read 'op://Private/Memento - Google Photos OAuth/client_id')|" "$env_file"
+    sed -i "" "s|GOOGLE_PHOTOS_CLIENT_SECRET=.*|GOOGLE_PHOTOS_CLIENT_SECRET=$(op read 'op://Private/Memento - Google Photos OAuth/client_secret')|" "$env_file"
+    echo "✓ .env populated from 1Password"
+}
 
 # ************ Experiments ****************************
 # activating venv. (not used)

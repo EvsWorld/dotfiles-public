@@ -14,9 +14,7 @@ return {
         show_end_of_buffer = true, -- shows the '~' characters after the end of buffers
         term_colors = true, -- sets terminal colors (e.g. `g:terminal_color_0`)
         dim_inactive = {
-          enabled = true, -- dims the background color of inactive window
-          shade = 'dark',
-          percentage = 0.55, -- percentage of the shade to apply to the inactive window
+          enabled = false, -- inactive splits stay at catppuccin default (active is darkened instead)
         },
         no_italic = false, -- Force no italic
         no_bold = false, -- Force no bold
@@ -55,27 +53,55 @@ return {
       -- Load the colorscheme here.
       vim.cmd.colorscheme 'catppuccin'
 
-      -- Override NormalNC for much stronger inactive split contrast.
-      -- Active split bg = #1e1e2e; #0d0d18 is roughly half the brightness.
-      vim.api.nvim_set_hl(0, 'NormalNC', { bg = '#0d0d18' })
+      -- Use palette-derived colors so highlights adapt to light/dark mode.
+      -- Re-applied via ColorScheme autocmd when the theme switches (e.g. macOS appearance change).
+      local function apply_focus_highlights()
+        local p = require('catppuccin.palettes').get_palette()
+        vim.api.nvim_set_hl(0, 'StatusLineNC', { fg = p.overlay0, bg = p.mantle })
+        -- Darken active split (crust) against lighter inactive splits (base).
+        vim.api.nvim_set_hl(0, 'NormalActive', { bg = p.crust })
+        vim.api.nvim_set_hl(0, 'NormalUnfocused', { bg = p.mantle })
+      end
+      apply_focus_highlights()
+      vim.api.nvim_create_autocmd('ColorScheme', {
+        pattern = 'catppuccin*',
+        callback = apply_focus_highlights,
+      })
+      local win_focus_group = vim.api.nvim_create_augroup('WinFocusActive', { clear = true })
+      vim.api.nvim_create_autocmd({ 'WinEnter', 'BufEnter' }, {
+        group = win_focus_group,
+        callback = function()
+          vim.opt_local.winhighlight = 'Normal:NormalActive'
+        end,
+      })
+      vim.api.nvim_create_autocmd('WinLeave', {
+        group = win_focus_group,
+        callback = function()
+          vim.opt_local.winhighlight = ''
+        end,
+      })
 
       -- Slightly dim entire nvim instance when tmux focus moves to another pane.
-      -- Requires tmux `focus-events on`. Adjust bg to taste — #141425 is noticeable but not harsh.
-      vim.api.nvim_set_hl(0, 'NormalUnfocused', { bg = '#141425' })
+      -- Requires tmux `focus-events on`.
       local focus_group = vim.api.nvim_create_augroup('FocusDim', { clear = true })
       vim.api.nvim_create_autocmd('FocusLost', {
         group = focus_group,
         callback = function()
           for _, win in ipairs(vim.api.nvim_list_wins()) do
-            vim.api.nvim_win_set_option(win, 'winhighlight', 'Normal:NormalUnfocused,CursorLine:NormalUnfocused')
+            vim.api.nvim_win_set_option(win, 'winhighlight', 'Normal:NormalUnfocused')
           end
         end,
       })
       vim.api.nvim_create_autocmd('FocusGained', {
         group = focus_group,
         callback = function()
+          local cur = vim.api.nvim_get_current_win()
           for _, win in ipairs(vim.api.nvim_list_wins()) do
-            vim.api.nvim_win_set_option(win, 'winhighlight', '')
+            if win == cur then
+              vim.api.nvim_win_set_option(win, 'winhighlight', 'Normal:NormalActive')
+            else
+              vim.api.nvim_win_set_option(win, 'winhighlight', '')
+            end
           end
         end,
       })

@@ -69,6 +69,7 @@ return {
       })
     end, { desc = 'harpoon: toggle quick pick menu' })
 
+    -- TODO:  why does theprimeagean have these mapped to ctrl-h,t,n,s ??
     vim.keymap.set('n', '<leader>1', function()
       harpoon:list():select(1)
     end, { desc = 'harpoon: select 1' })

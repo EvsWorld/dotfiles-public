@@ -1,7 +1,7 @@
 -- [[ Basic Keymaps ]]
 --  See `:help vim.keymap.set()`
 
-vim.keymap.set('x', '<leader>ktl', '<cmd>lua print(vim.fn.wordcount().visual_words)<CR>')
+-- vim.keymap.set('x', '<leader>ktl', '<cmd>lua print(vim.fn.wordcount().visual_words)<CR>')
 
 function ToggleAutoWrap()
   -- Only allow wrapping for markdown and text files
@@ -104,14 +104,21 @@ vim.keymap.set('n', 'n', 'nzv', { desc = 'Go to next match' })
 vim.keymap.set('n', 'N', 'Nzv', { desc = 'Go to previous match' })
 vim.keymap.set('n', 'J', 'mzJ`z', { desc = 'Join line below to current line' })
 
--- Go to line number (e.g., 42- goes to line 42)
+-- Go to line number (e.g., 42- goes to line 42), or beginning of line
 vim.keymap.set('n', '-', function()
   if vim.v.count > 0 then
     vim.cmd('normal! ' .. vim.v.count .. 'G')
   else
-    vim.cmd('normal! -')
+    vim.cmd('normal! 0')
   end
-end, { desc = 'Go to line (with count) or move up one line' })
+end, { desc = 'Go to line (with count) or beginning of current line' })
+vim.keymap.set('n', '_', function()
+  if vim.v.count > 0 then
+    vim.cmd('normal! ' .. vim.v.count .. 'G')
+  else
+    vim.cmd('normal! 0')
+  end
+end, { desc = 'Go to line (with count) or beginning of current line' })
 
 -- Good bc doesnt clutter up the jumplist
 -- Scroll half as much as default (1/4 page instead of 1/2)
@@ -214,10 +221,10 @@ vim.keymap.set({ 'n' }, '<leader>y', function()
   local result = selected_text .. '\n\n' .. '## ' .. filepath .. ':' .. line_num
   -- Set the clipboard register with our formatted result
   vim.fn.setreg('+', result)
-  vim.notify(
-    'Copied: ' .. filepath .. ':' .. line_num .. ' with selected text',
-    vim.log.levels.INFO
-  )
+  -- vim.notify(
+  --   'Copied: ' .. filepath .. ':' .. line_num .. ' with selected text',
+  --   vim.log.levels.INFO
+  -- )
 end, { desc = '[Y]ank file path, line range, and selected text' })
 
 vim.keymap.set({ 'v', 'x' }, '<leader>y', function()
@@ -613,7 +620,6 @@ vim.keymap.set('t', '<Esc><Esc>', '<C-\\><C-n>', { desc = 'Exit terminal mode' }
 -- ------------------------------------------------
 -- TODO: make gt = peek definition
 -- TODO: make gj = show hover
--- TODO: make gr = show references
 
 -- Console log functions
 -- function ConsoleLogHereVisual()

@@ -17,6 +17,12 @@ return {
               fmt = function(str)
                 return str:sub(1, 1)
               end,
+              -- color = { bg = '#f38ba8', fg = '#1e1e2e', gui = 'bold' },
+              -- ^ Override to make mode box always red (active-window focus indicator).
+              -- Removed: lualine's catppuccin theme already colors by mode (blue=normal,
+              -- green=insert, orange=visual), and the mode box only appears in the active
+              -- window (inactive_sections has no lualine_a), so it still serves as a
+              -- focus indicator without forcing a single color for all modes.
             },
           },
           lualine_b = {
@@ -78,6 +84,10 @@ return {
           --   },
           -- },
           lualine_z = { 'location' },
+        },
+        inactive_sections = {
+          lualine_c = { { 'filename', path = 1 } },
+          lualine_x = { 'location' },
         },
       }
     end,
