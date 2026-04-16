@@ -1,13 +1,13 @@
 return {
   'yetone/avante.nvim',
-  enable = false,
+  enable = true,
   event = 'VeryLazy',
   lazy = false,
   version = false, -- Set this to "*" to always pull the latest release version, or set it to false to update to the latest code changes.
   opts = {
     -- add any opts here
     -- for example
-    provider = 'claude',
+    provider = 'copilot',
     mappings = {
       submit = {
         normal = '<C-CR>',

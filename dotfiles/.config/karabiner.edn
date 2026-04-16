@@ -208,9 +208,9 @@
                 :ghostty ["^com\\.mitchellh\\.ghostty$"]
                 :brother ["^com\\.brother\\.PtouchEditor$"]
                 :obsidian ["^md\\.obsidian$"]
-                ; com.apple.Preview
-                ; /System/Applications/Preview.app/Contents/MacOS/Preview
                 :preview ["^com\\.apple\\.Preview$"]
+                :signal ["^org\\.whispersystems\\.signal-desktop$"]
+
 
 ;;;;;;
                 }
@@ -441,11 +441,12 @@
                 ; apps with bullets (bear, dayone, things)
                 ; line below the current line. uses enter do it gives me new bullets and  . vs:vscodeAndCursor handled above in overrides
                  ;; for apps not specified below. This makes bear and dayone behave normally
-                 [:o [:!Cright_arrow :return_or_enter] [:!chatgpt :!claude :!ghostty :!messages :!slack :!teams :!whatsapp :!vscodeAndCursor :!chrome :!firefox]]
+                 [:o [:!Cright_arrow :return_or_enter] [:!chatgpt :!claude :!ghostty :!messages :!slack :!teams :!whatsapp :!vscodeAndCursor :!chrome :!firefox :!signal]]
                 ; // my hyper mode create line below (cmd + o) isnt wroking right in cursor. whats it doing now?
                 ; line below. messaging apps (shift enter) (chatgpt, messages, whatsapp, slack, :vscodeAndCursor)
                 ;  [:o [:!Cright_arrow :!Sreturn_or_enter]]   ;; this makes :chatgpt quick chat work. it would obviate all the specific ones below
                 ;  these  were working fine expect for chatgpt quick chat
+                 [:o [:!Cright_arrow :!Sreturn_or_enter] [:signal]]
                  [:o [:!Cright_arrow :!Sreturn_or_enter] [:chatgpt]]
                  [:o [:!Cright_arrow :!Sreturn_or_enter] [:claude]]
                  [:o [:!Cright_arrow :!Sreturn_or_enter] [:messages]]
@@ -458,7 +459,7 @@
                  [:o [:!Cright_arrow :!Sreturn_or_enter] [:firefox]]    ;; TODO map this in vscode to line below when in editor
 
                 ; line above.  apps with bullets
-                 [:!Co [:!Ta :left_arrow :!Te :return_or_enter] [:!things :!bear :!dayone :!chatgpt :!claude :!ghostty :!messages :!whatsapp :!vscodeAndCursor :!slack :!teams :!chrome :!firefox]] ;; for aps not specified below?
+                 [:!Co [:!Ta :left_arrow :!Te :return_or_enter] [:!things :!bear :!dayone :!chatgpt :!claude :!ghostty :!messages :!whatsapp :!vscodeAndCursor :!slack :!teams :!chrome :!firefox :!signal]] ;; for aps not specified below?
                  ; line above. messaging apps (shift enter)
                  [:!Co [:!Ta   :return_or_enter :up_arrow] [:dayone]]   ;; so on bullet points it adds a new one
                  [:!Co [:!Cleft_arrow   :return_or_enter :up_arrow] [:bear]]   ;; so on bullet points it adds a new one
@@ -467,6 +468,7 @@
                  [:!Co [:!Ta :left_arrow  :!Sreturn_or_enter] [:claude]]
                  [:!Co [:!Ta :left_arrow  :!Sreturn_or_enter] [:messages]]
                  [:!Co [:!Ta :left_arrow  :!Sreturn_or_enter] [:whatsapp]]
+                 [:!Co [:!Ta :left_arrow  :!Sreturn_or_enter] [:signal]]
                  [:!Co [:!Ta :left_arrow  :!Sreturn_or_enter] [:slack]]
                  [:!Co [:!Ta :left_arrow  :!Sreturn_or_enter] [:teams]]
                  [:!Co [:!Ta :left_arrow  :!Sreturn_or_enter] [:chrome]]
@@ -1224,6 +1226,19 @@
                  [:!Cclose_bracket :!CSclose_bracket]
                  ;;;;;
                  ]}
+
+
+
+        {:des "signal--"
+         :rules [:signal
+                 [:left_option :left_option nil {:alone :!Cf}]   ;; search in all chats
+                 [:left_command :left_command nil {:alone :!COf}]  ;; search in current chat
+                 [:return_or_enter  :!Sreturn_or_enter] ;; make return send 'shift enter'
+                 [:!Copen_bracket :!Oup_arrow]  ;; move forward a conversation
+                 [:!Cclose_bracket :!Odown_arrow]  ;; move back a conversation
+                ;;;;;;
+                 ]}
+
 
         {:des "whatsapp--"
          ; :priority 150

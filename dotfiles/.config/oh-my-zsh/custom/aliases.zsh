@@ -1,7 +1,10 @@
 # ***** python *****
 # alias scce='source venv/bin/activate'
 
-
+# TODO: consider running/using sysreset on a schedule or when certain
+# conditions are met (like high memory usage or too many tmux sessions). could
+# be a cron job that runs every hour or so, or a function that checks memory
+# and tmux sessions and prompts to reset if thresholds are exceeded.
 
 # Check memory before running heavy tasks
 pre-heavy() {
@@ -391,6 +394,18 @@ ffv() { local f="$(fzf)"; [[ -n "$f" ]] && realpath "$f" | pbcopy && nvim "$f" }
 # fzf but just copy the full path to the clipboard
 ff() { local f="$(fzf)"; [[ -n "$f" ]] && realpath "$f" | pbcopy }
 
+# Fuzzy-find and edit any script from ~/scripts or ~/Projects/*/bin
+# Usage: editscript         → opens fzf with all scripts
+#        editscript sys     → pre-fills "sys" in fzf search
+editscript() {
+  local match
+  match=$(find ~/scripts ~/Projects/*/bin -type f -perm +111 \
+    -not -path '*/node_modules/*' -not -path '*/venv/*' -not -path '*/.venv/*' \
+    -not -path '*/archive/*' -not -path '*/.git/*' 2>/dev/null | \
+    fzf --query="$1" --select-1 --exit-0 --preview 'head -40 {}')
+  [[ -n "$match" ]] && ${EDITOR:-vim} "$match"
+}
+
 # TODO hook up to control+r
 ffhist() {
   eval $(fc -l 1 | fzf --tac | sed 's/ *[0-9]* *//')
@@ -754,6 +769,32 @@ clf() {
 }
 
 alias cpub='cfg publish-dotfiles'          # Sync & commit public dotfiles
+
+# ******* AI-assisted commits *******
+aiccum() {
+  opencode run "ONLY output one line: the successful commit SHA and message, or an error if something failed. DO NOT provide any explanation, commentary, or step-by-step output—just the result.
+You are working with a bare git dotfiles repo. The 'cfg' alias is NOT available—ALWAYS use the full command: /usr/bin/git --git-dir=$HOME/.cfg/ --work-tree=$HOME
+Run '/usr/bin/git --git-dir=$HOME/.cfg/ --work-tree=$HOME diff' and '... status' to see what changed since the last commit. Generate an appropriate conventional commit message based on the diff, stage all modified and deleted files using '... add -u', then commit using '... commit'. NEVER touch secrets files. Only use Bash commands."
+}
+
+aiccump() {
+  opencode run "ONLY output one line: the successful commit SHA and message, or an error if something failed. DO NOT provide any explanation, commentary, or step-by-step output—just the result.
+You are working with a bare git dotfiles repo. The 'cfg' alias is NOT available—ALWAYS use the full command: /usr/bin/git --git-dir=$HOME/.cfg/ --work-tree=$HOME
+Run '/usr/bin/git --git-dir=$HOME/.cfg/ --work-tree=$HOME diff' and '... status' to see what changed since the last commit. Generate an appropriate conventional commit message based on the diff, stage all modified and deleted files using '... add -u', commit using '... commit', then push using '... push'. NEVER touch secrets files. Only use Bash commands."
+}
+
+aigcum() {
+  opencode run "ONLY output one line: the successful commit SHA and message, or an error if something failed. DO NOT provide any explanation, commentary, or step-by-step output—just the result.
+You are working with a standard git repo. The 'cfg' alias is NOT available here. Use full git commands: 'git diff', 'git status', 'git add -u', 'git commit', 'git push'. Generate an appropriate conventional commit message based on the diff, stage all modified and deleted files, commit, then push to main. NEVER touch secrets files. Only use Bash commands."
+}
+
+aigcump() {
+  opencode run "ONLY output one line: the successful commit SHA and message, or an error if something failed. DO NOT provide any explanation, commentary, or step-by-step output—just the result.
+You are working with a standard git repo. The 'cfg' alias is NOT available here. Use full git commands: 'git diff', 'git status', 'git add -u', 'git commit'. Generate an appropriate conventional commit message based on the diff, stage all modified and deleted files and make commit to current branch. NEVER touch secrets files. Only use Bash commands."
+}
+
+# ******* End AI-assisted commits *******
+
 
 
 # ************ Projects ****************************

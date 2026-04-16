@@ -189,14 +189,16 @@ export NVM_DIR="$HOME/.nvm"
 #zsh autosuggestions
 # DELETE:
 # bindkey '^ ' autosuggest-accept
+bindkey '\e;' autosuggest-accept
 
-# TODO: move scripts directory into projects/ directory
 # Auto-sync all executable scripts to ~/.local/bin for global access.
-# Update SCRIPTS_DIR if you move your scripts elsewhere.
-SCRIPTS_DIR="$HOME/scripts"
+# Scans both ~/scripts and ~/Projects/*/bin directories.
 _sync_scripts() {
   local bin_dir="$HOME/.local/bin"
-  find "$SCRIPTS_DIR" -type f -perm +111 \
+  find "$HOME/scripts" "$HOME/Projects"/*/bin -type f -perm +111 \
+    -not -path '*/node_modules/*' \
+    -not -path '*/venv/*' \
+    -not -path '*/.venv/*' \
     -not -path '*/archive/*' \
     -not -path '*/.git/*' -exec sh -c '
     bin_dir="$1"
@@ -226,3 +228,12 @@ fi
 # 1Password shell plugins (injects credentials via Touch ID instead of env vars)
 source ~/.config/op/plugins.sh
 
+# bun completions
+[ -s "$HOME/.bun/_bun" ] && source "$HOME/.bun/_bun"
+
+# bun
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
+
+# Deduplicate PATH (Optional). Uncomment if duplicate paths persist.
+# export PATH=$(perl -e 'print join(":", grep { !$seen{$_}++ } split(/:/, $ENV{PATH}))')

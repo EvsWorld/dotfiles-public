@@ -124,6 +124,15 @@ examples of adding popularly requested plugins.
 
 [The Only Video You Need to Get Started with Neovim](https://youtu.be/m8C0Cq9Uv9o)
 
+### Improved Undotree Diff Panel Readability
+
+The Undotree plugin now applies stronger diff highlighting so its diff panel is easier to scan:
+- **Added lines** use a higher-contrast green highlight.
+- **Deleted lines** use a higher-contrast red highlight.
+- **Changed lines** use a warmer amber highlight.
+
+These highlights are re-applied after colorscheme changes so the Undotree diff panel stays readable when the theme reloads. Use `<leader>u` to toggle the Undotree panel.
+
 ### FAQ
 
 * What should I do if I already have a pre-existing Neovim configuration?
@@ -245,4 +254,3 @@ sudo dnf install -y gcc make git ripgrep fd-find unzip neovim
 sudo pacman -S --noconfirm --needed gcc make git ripgrep fd unzip neovim
 ```
 </details>
-
