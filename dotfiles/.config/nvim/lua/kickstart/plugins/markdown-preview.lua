@@ -1,8 +1,11 @@
+-- https://github.com/iamcco/markdown-preview.nvim
 return {
   'iamcco/markdown-preview.nvim',
   keys = {
     {
-      '<leader>tmp',
+      -- TODO: fix
+      -- ERROR: E492: Not an editor command: MarkdownPreviewToggle
+      '<leader>kmt',
       ft = 'markdown',
       '<cmd>MarkdownPreviewToggle<cr>',
       desc = 'Markdown Preview',

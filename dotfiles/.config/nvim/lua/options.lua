@@ -99,7 +99,7 @@ vim.o.sidescrolloff = 3
 vim.o.wrap = false
 
 -- Visual guide for line length (matches black default)
-vim.o.colorcolumn = '88'  -- Show vertical line at column 88
+vim.o.colorcolumn = '88' -- Show vertical line at column 88
 -- vim.o.textwidth = 88    -- Don't auto-wrap; let black handle formatting
 vim.o.foldmethod = 'manual'
 
@@ -137,15 +137,15 @@ autocmd('VimResized', {
   command = 'wincmd =',
 })
 
--- Enable soft wrap by default for markdown and text files, disable for all others
+-- Enable soft wrap by default for markdown-like text buffers, disable for all others
 local wrap_control_group = augroup('WrapControl', { clear = true })
 autocmd({ 'FileType', 'BufEnter', 'BufWinEnter' }, {
   group = wrap_control_group,
   pattern = '*',
   callback = function()
     local ft = vim.bo.filetype
-    -- Enable wrap by default for markdown and text files
-    if ft == 'markdown' or ft == 'text' then
+    -- Enable wrap by default for markdown, prose, and Avante response buffers
+    if ft == 'markdown' or ft == 'text' or ft == 'Avante' then
       vim.opt_local.wrap = true
       vim.opt_local.linebreak = true
       vim.opt_local.breakindent = true
@@ -225,6 +225,14 @@ vim.api.nvim_create_autocmd('VimLeavePre', {
   desc = 'Save session automatically (tmux-aware)',
   group = vim.api.nvim_create_augroup('SaveSession', { clear = true }),
   callback = function()
+    -- Close all nofile windows before saving so scratch/plugin buffers (e.g. Avante) aren't persisted
+    for _, win in ipairs(vim.api.nvim_list_wins()) do
+      local buf = vim.api.nvim_win_get_buf(win)
+      local bt = vim.api.nvim_get_option_value('buftype', { buf = buf })
+      if bt == 'nofile' or bt == 'nowrite' then
+        pcall(vim.api.nvim_win_close, win, false)
+      end
+    end
     local session_file = get_session_file()
     vim.cmd('mksession! ' .. session_file)
     save_quickfix_list()
@@ -265,8 +273,6 @@ vim.api.nvim_create_autocmd('VimEnter', {
     end
   end,
 })
-
-
 
 -- Folding settings. To work with treesitter
 -- vim.o.foldexpr = 'nvim_treesitter#foldexpr()'

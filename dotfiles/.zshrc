@@ -10,6 +10,10 @@
 # * Result: If Gemini tries to balloon to 41GB again, the OS will simply kill it (Crash) instead of
 # letting it freeze your Mac.
 
+# macOS default file descriptor limit is 256 — far too low for Neovim + LSPs + plugins.
+# Raised to 4096 to fix EMFILE errors when avante.nvim tries to spawn curl on startup.
+ulimit -n 4096
+
 alias cleanup="~/scripts/gemini-cleanup"
 
 # If you come from bash you might have to change your $PATH.
@@ -191,6 +195,7 @@ export NVM_DIR="$HOME/.nvm"
 # bindkey '^ ' autosuggest-accept
 bindkey '\e;' autosuggest-accept
 
+# TODO: i think this should also scan bin/ directories in `$HOME/scripts/*`
 # Auto-sync all executable scripts to ~/.local/bin for global access.
 # Scans both ~/scripts and ~/Projects/*/bin directories.
 _sync_scripts() {
@@ -237,3 +242,7 @@ export PATH="$BUN_INSTALL/bin:$PATH"
 
 # Deduplicate PATH (Optional). Uncomment if duplicate paths persist.
 # export PATH=$(perl -e 'print join(":", grep { !$seen{$_}++ } split(/:/, $ENV{PATH}))')
+
+
+# Added by Antigravity CLI installer
+export PATH="$HOME/.local/bin:$PATH"

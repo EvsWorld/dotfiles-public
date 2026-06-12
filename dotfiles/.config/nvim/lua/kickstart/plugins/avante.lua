@@ -1,17 +1,59 @@
 return {
   'yetone/avante.nvim',
-  enable = true,
-  event = 'VeryLazy',
-  lazy = false,
+  enabled = true,
+  cmd = {
+    'AvanteAsk',
+    'AvanteChat',
+    'AvanteChatNew',
+    'AvanteToggle',
+    'AvanteEdit',
+    'AvanteRefresh',
+    'AvanteFocus',
+    'AvanteSwitchProvider',
+    'AvanteSwitchSelectorProvider',
+    'AvanteSwitchInputProvider',
+  },
+  keys = {
+    '<leader>vv',
+    '<leader>ve',
+    '<leader>vf',
+    '<leader>vn',
+    '<leader>vh',
+    '<leader>vm',
+    '<leader>vk',
+    '<leader>vt',
+    '<leader>vc',
+  },
   version = false, -- Set this to "*" to always pull the latest release version, or set it to false to update to the latest code changes.
   opts = {
     -- add any opts here
     -- for example
+    -- TODO: should i set provider to chatgpt somehow?
     provider = 'copilot',
+    -- TODO: make the avante chat output wrap. right now it just goes off the screen and i have to scroll to see the rest of the answer
+    behaviour = {
+      minimize_diff = false, -- vim.text.diff not available in nvim 0.11.x
+    },
+    windows = {
+      wrap = true,
+    },
     mappings = {
+      ask = '<leader>vv',
+      edit = '<leader>ve',
+      focus = '<leader>vf',
+      new_ask = '<leader>vn',
+      select_history = '<leader>vh',
+      select_model = '<leader>vm',
+      stop = '<leader>vk',
+      toggle = {
+        default = '<leader>vt',
+      },
+      files = {
+        add_current = '<leader>vc',
+      },
       submit = {
-        normal = '<C-CR>',
-        insert = '<C-CR>',
+        normal = '<CR>',
+        insert = '<C-y>',
       },
     },
   },
@@ -44,14 +86,6 @@ return {
           use_absolute_path = false,
         },
       },
-    },
-    {
-      -- Make sure to set this up properly if you have lazy=true
-      'MeanderingProgrammer/render-markdown.nvim',
-      opts = {
-        file_types = { 'markdown', 'Avante' },
-      },
-      ft = { 'markdown', 'Avante' },
     },
   },
 }

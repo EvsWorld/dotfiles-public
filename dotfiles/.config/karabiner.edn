@@ -211,7 +211,6 @@
                 :preview ["^com\\.apple\\.Preview$"]
                 :signal ["^org\\.whispersystems\\.signal-desktop$"]
 
-
 ;;;;;;
                 }
 ;; Layers: Pro is that you can hold down for a while without . Con is that if
@@ -847,6 +846,7 @@
                 ;; for vscode map to control + key  TODO: check if i neeed this. i want to use it for global search word under cursor
 
          ;;  ****** hyper-a-right hand ******
+                 [:return_or_enter :!Treturn_or_enter [:terminalapps]] 
                 ;;  [:h :!TOh]
                 ;;  [:j :!TOj]
                 ;;  [:k :!TOk]
@@ -1166,6 +1166,7 @@
                  ; [:right_command :right_command nil {:alone [:!Tspacebar]}]  ;; tmux prefix
                  [:right_option :right_option nil {:alone [:!Ts :w]}]   ;; tmux windowizer? session picker?
                  ; [:!Creturn_or_enter :return_or_enter] ;; make cmd + enter send 'enter'
+                 [:!Treturn_or_enter :!Treturn_or_enter] 
                  [:return_or_enter :return_or_enter] ;; make  enter send 'enter'
                  [:!Copen_bracket :!Copen_bracket]
                  [:!Cclose_bracket :!Cclose_bracket]
@@ -1227,8 +1228,6 @@
                  ;;;;;
                  ]}
 
-
-
         {:des "signal--"
          :rules [:signal
                  [:left_option :left_option nil {:alone :!Cf}]   ;; search in all chats
@@ -1238,7 +1237,6 @@
                  [:!Cclose_bracket :!Odown_arrow]  ;; move back a conversation
                 ;;;;;;
                  ]}
-
 
         {:des "whatsapp--"
          ; :priority 150

@@ -131,15 +131,18 @@ return {
             '[G]oto [T]ype Definition'
           )
 
-          --  ----- from theprimeagen $HOME/.config/nvim-theprimeagen/lua/theprimeagen/init.lua:70
+          --  from theprimeagen $HOME/.config/nvim-theprimeagen/lua/theprimeagen/init.lua:70
           vim.keymap.set('n', 'gd', function()
             vim.lsp.buf.definition()
           end, { desc = 'Go to definition', buffer = event.buf })
-          -- TODO: why doesnt this work?
+
           vim.keymap.set('n', 'gh', function()
             vim.lsp.buf.hover()
           end, { desc = 'Hover', buffer = event.buf })
-          vim.keymap.set('n', '<leader>vd', function()
+
+          -- TODO: make keybinding make sense. maybe <leader>khd for [K] Diagnostic [H]over [D]etails or something like that?
+          -- QUESTION: what is this?
+          vim.keymap.set('n', '<leader>khd', function()
             vim.diagnostic.open_float()
           end, { desc = 'Diagnostic Open Float', buffer = event.buf })
 
@@ -223,7 +226,9 @@ return {
               event.buf
             )
           then
-            map('<leader>th', function()
+            -- TODO:  replace binding with  something that fits with my keybinding philosophy
+            -- <leader>kh could work. 
+            map('<leader>kh', function()
               vim.lsp.inlay_hint.enable(
                 not vim.lsp.inlay_hint.is_enabled { bufnr = event.buf }
               )

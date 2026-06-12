@@ -43,8 +43,8 @@ Enter window operations mode with `Prefix+w`, then:
 - `d` - Split horizontally (stacked panes)
 
 ### Layout Management
-- `w` - Toggle zoom current pane
-- `e` - Equalize all panes
+- `w` - Equalize all panes
+- `e` - Toggle zoom current pane
 - `s` - Even horizontal layout
 - `Shift+s` - Even vertical layout
 
@@ -159,7 +159,7 @@ Enter window operations mode with `Prefix+w`, then:
 - **Window chooser** (`Prefix+"`): When you forgot window names/numbers
 
 ### Pane Management Strategy
-- Use `Prefix+w+e` frequently to equalize panes after splits
+- Use `Prefix+w+w` frequently to equalize panes after splits
 - `Prefix+w+n` to temporarily hide panes (they persist as background windows)
 - `Prefix+Ctrl+c` to close panes (auto-equalizes remaining panes)
 

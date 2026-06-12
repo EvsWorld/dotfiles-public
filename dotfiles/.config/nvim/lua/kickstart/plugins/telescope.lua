@@ -25,6 +25,10 @@ return {
         end,
       },
       { 'nvim-telescope/telescope-ui-select.nvim' },
+      {
+        'nvim-telescope/telescope-live-grep-args.nvim',
+        version = '^1.0.0',
+      },
 
       -- Useful for getting pretty icons, but requires a Nerd Font.
       { 'nvim-tree/nvim-web-devicons', enabled = vim.g.have_nerd_font },
@@ -53,6 +57,7 @@ return {
       -- See `:help telescope` and `:help telescope.setup()`
       local actions = require 'telescope.actions'
       local action_state = require 'telescope.actions.state'
+      local lga_actions = require 'telescope-live-grep-args.actions'
 
       -- Custom action to set search register when opening files from grep
       local function set_search_register(prompt_bufnr)
@@ -124,12 +129,27 @@ return {
           ['ui-select'] = {
             require('telescope.themes').get_dropdown(),
           },
+          live_grep_args = {
+            auto_quoting = true,
+            mappings = {
+              i = {
+                ['<C-k>'] = lga_actions.quote_prompt(),
+                ['<C-g>'] = lga_actions.quote_prompt { postfix = ' --glob ' },
+                ['<C-t>'] = lga_actions.quote_prompt { postfix = ' -t' },
+              },
+            },
+          },
         },
       }
 
       -- Enable Telescope extensions if they are installed
       pcall(require('telescope').load_extension, 'fzf')
       pcall(require('telescope').load_extension, 'ui-select')
+      pcall(require('telescope').load_extension, 'live_grep_args')
+
+      local function live_grep_args(opts)
+        require('telescope').extensions.live_grep_args.live_grep_args(opts or {})
+      end
 
       -- Enable line wrapping in Telescope previews for markdown files
       vim.api.nvim_create_autocmd('User', {
@@ -358,14 +378,14 @@ return {
 
       -- QUESTION: When searching using this function, I have to escape brackets (\[) for some reason.
       vim.keymap.set('n', '<leader>ss', function()
-        builtin.live_grep {
+        live_grep_args {
           prompt_title = '[S]earch by Grep in project',
         }
       end, { desc = '[S]earch by Grep in project' })
 
       -- Duplicate of <leader>ss for faster access (2 keystrokes instead of 3)
       vim.keymap.set('n', '<leader>.', function()
-        builtin.live_grep {
+        live_grep_args {
           prompt_title = 'Search by Grep in project',
         }
       end, { desc = 'Search by Grep (fast: .)' })

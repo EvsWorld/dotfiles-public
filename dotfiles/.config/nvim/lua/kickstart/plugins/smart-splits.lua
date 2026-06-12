@@ -84,15 +84,14 @@ return {
         vim.t.maximized = true
       end
     end
+    vim.keymap.set('n', '<leader>ww', '<C-w>=', { desc = '[W]indow: Equalize splits' })
+
     vim.keymap.set(
       'n',
-      '<leader>ww',
+      '<leader>we',
       toggle_maximize,
       { desc = '[W]indow: Toggle maximize split' }
     )
-
-    -- Equalize splits
-    vim.keymap.set('n', '<leader>we', '<C-w>=', { desc = '[W]indow: Equalize splits' })
 
     -- TODO: make sure undotree has a minimum size
   end,

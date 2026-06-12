@@ -69,7 +69,7 @@ vim.api.nvim_create_user_command(
   { desc = 'Toggle textwidth wrapping' }
 )
 
---  DELETE: ??  
+--  DELETE: ??
 --  See `:help hlsearch`
 -- vim.keymap.set(
 --   'n',
@@ -109,14 +109,14 @@ vim.keymap.set('n', '-', function()
   if vim.v.count > 0 then
     vim.cmd('normal! ' .. vim.v.count .. 'G')
   else
-    vim.cmd('normal! 0')
+    vim.cmd 'normal! 0'
   end
 end, { desc = 'Go to line (with count) or beginning of current line' })
 vim.keymap.set('n', '_', function()
   if vim.v.count > 0 then
     vim.cmd('normal! ' .. vim.v.count .. 'G')
   else
-    vim.cmd('normal! 0')
+    vim.cmd 'normal! 0'
   end
 end, { desc = 'Go to line (with count) or beginning of current line' })
 
@@ -185,12 +185,12 @@ vim.keymap.set(
   { silent = true, desc = 'Search in file: selected text' }
 )
 
--- TODO: add a notify message
-vim.keymap.set('n', '<leader>Y', ':let @+ = expand("%:p")<CR>', {
+vim.keymap.set('n', '<leader>y', ':let @+ = expand("%:p")<CR>', {
   silent = true,
   desc = '[Y]ank file path',
 })
 
+--TODO: possibly change so it appends the current file path to the clipboard
 vim.keymap.set({ 'v', 'x' }, '<leader>Y', function()
   vim.cmd 'normal! y'
   local start_line = vim.fn.line "'<"
@@ -207,25 +207,27 @@ vim.keymap.set({ 'v', 'x' }, '<leader>Y', function()
   -- )
 end, { desc = '[Y]ank file path, line range' })
 
-vim.keymap.set({ 'n' }, '<leader>y', function()
-  local line_num = vim.fn.line '.'
-  -- First, yank the selection to capture it properly
+-- TODO:  does there need to be something for normal mode <leader>Y  ?
+
+vim.keymap.set({ 'n', 'x' }, '<leader>Y', function()
   vim.cmd 'normal! yy'
   -- Get selection info after yanking
-  -- local start_line = vim.fn.line "'<"
-  -- local end_line = vim.fn.line "'>"
+  local start_line = vim.fn.line "'<"
+  local end_line = vim.fn.line "'>"
   -- Get the selected text from the unnamed register (just yanked)
   local selected_text = vim.fn.getreg '"'
   local filepath = vim.fn.expand '%:p'
-  -- local line_range = start_line == end_line and tostring(start_line) or start_line .. '-' .. end_line
-  local result = selected_text .. '\n\n' .. '## ' .. filepath .. ':' .. line_num
+  local line_range = start_line == end_line and tostring(start_line)
+    or start_line .. '-' .. end_line
+  local result = selected_text .. '\n\n' .. '## ' .. filepath .. ':' .. line_range
   -- Set the clipboard register with our formatted result
   vim.fn.setreg('+', result)
   -- vim.notify(
-  --   'Copied: ' .. filepath .. ':' .. line_num .. ' with selected text',
+  --   'Copied: ' .. filepath .. ':' .. line_range .. ' with selected text',
   --   vim.log.levels.INFO
   -- )
-end, { desc = '[Y]ank file path, line range, and selected text' })
+end, { desc = '[Y]ank current line and file path' })
+
 
 vim.keymap.set({ 'v', 'x' }, '<leader>y', function()
   vim.cmd 'normal! y'

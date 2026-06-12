@@ -2,9 +2,9 @@
 
 A showcase of the Alfred workflows that power my productivity. Feel free to explore and discover new workflows!
 
-Last updated: 2026-04-16 05:01:07
+Last updated: 2026-06-12 15:15:08
 
-Total workflows: 110
+Total workflows: 111
 
 > **Note**: This is a showcase list only. Actual workflow files are not included for security reasons (may contain API keys). Find these workflows on [Alfred Gallery](https://alfred.app/workflows/), [Packal](http://www.packal.org/), or GitHub.
 
@@ -91,6 +91,7 @@ Total workflows: 110
 | Shrieking Chimes | com.vitorgalvao.alfred.shriekingchimes | Set Timers and Alarms | 2024.1 |
 | Movie and TV Show Search | com.mcknight.movies | Search and get info on movies or TV shows | 2.20.0 |
 | Fixum | net.deanishe.alfred.fixum | Fix Alfred 3 workflows affected by the Sierra background process bug | 0.11 |
+| Moom | com.paradigmdevelopment.moom | Switch between Moom layouts | 1.0.2 |
 | Control Keeping You Awake | com.andreatitolo.kya-alfred | Control Keeping You Awake from Alfred | 1.0.1 |
 | PDF Summarizer | de.chris-grieser.pdf-summarizer | Get summaries of your PDFs via ChatPDF with just one hotkey. | 1.1.1 |
 | Emoji picker | com.github.devnoname120.alfred-emoji-picker | Pick emojis within Alfred — at a blazing-fast speed | 1.1 |

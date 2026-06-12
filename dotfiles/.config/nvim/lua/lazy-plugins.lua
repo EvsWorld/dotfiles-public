@@ -53,6 +53,7 @@ require('lazy').setup({
   require 'kickstart.plugins.harpoon',
   require 'kickstart.plugins.vim-apm',
   require 'kickstart.plugins.oil',
+  require 'kickstart.plugins.vim-eunuch',
   require 'kickstart.plugins.undotree',
   require 'kickstart.plugins.interestingwords',
   require 'kickstart.plugins.nvim-tmux-navigation',
@@ -61,6 +62,7 @@ require('lazy').setup({
   require 'kickstart.plugins.scrollview',
   require 'kickstart.plugins.obsidian',
   require 'kickstart.plugins.markdown-preview',
+  require 'kickstart.plugins.render-markdown',
   require 'kickstart.plugins.outline',
 
   -- require 'kickstart.plugins.indent_line',
@@ -70,7 +72,7 @@ require('lazy').setup({
 
   require 'kickstart.plugins.auto-save', -- not working at all
   require 'kickstart.plugins.gemini',
-  -- require 'kickstart.plugins.avante',
+  require 'kickstart.plugins.avante',
   require 'kickstart.plugins.code-bridge',
   require 'kickstart.plugins.neo-tree',
   -- require 'kickstart.plugins.colorful-winsep', -- disabled: bottom border overlaps statusline

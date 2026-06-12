@@ -22,11 +22,14 @@ _tmux_startup_check() {
     (( ${_TMUX_CHECK_RAN:-0} )) && return
     _TMUX_CHECK_RAN=1
 
-    local session_count
+    local session_count pane_count
     session_count=$(tmux ls 2>/dev/null | wc -l | tr -d ' ')
-    [[ $session_count -le 10 ]] && return
+    pane_count=$(tmux list-panes -a 2>/dev/null | wc -l | tr -d ' ')
 
-    echo "🚨 $session_count tmux sessions active."
+    [[ $session_count -le 10 && $pane_count -le 40 ]] && return
+
+    [[ $session_count -gt 10 ]] && echo "🚨 $session_count tmux sessions active."
+    [[ $pane_count -gt 40 ]] && echo "🚨 $pane_count tmux panes open — consider running tmux-prune."
 
     local -a core_sessions=(ConfigGeneral Nvim tmux Claude)
     local extras=0 name k is_core
@@ -48,6 +51,45 @@ _tmux_startup_check() {
     [[ $dead_panes -gt 0 ]] && echo "  ↳ ⚠️  $dead_panes dead pane(s) — a process may have crashed"
 }
 _tmux_startup_check
+
+# Kill non-core tmux sessions interactively (fzf multi-select)
+# Core sessions (ConfigGeneral, Nvim, tmux, Claude) are pre-filtered out.
+# Usage: tmux-prune
+tmux-prune() {
+  local -a core_sessions=(ConfigGeneral Nvim tmux Claude)
+  local core_pattern
+  core_pattern=$(IFS='|'; echo "${core_sessions[*]}")
+
+  local selected
+  selected=$(tmux list-sessions -F '#{session_name}: #{session_windows}w / #{session_attached} attached' 2>/dev/null \
+    | grep -vE "^(${core_pattern}):" \
+    | fzf --multi --prompt="Kill sessions (TAB to multi-select): " --height=40% --reverse)
+
+  [[ -z "$selected" ]] && return 0
+
+  echo "$selected" | awk -F: '{print $1}' | while read -r name; do
+    tmux kill-session -t "$name" && echo "Killed: $name"
+  done
+}
+
+# Kill all nvim processes whose parent shell is dead (PPID=1 = reparented to launchd)
+# These are the orphans that accumulate after closing panes without exiting nvim.
+nvim-prune() {
+  local orphans
+  orphans=$(ps -eo pid=,ppid=,comm= | awk '$3~/^n?vim/ && $2==1 {print $1}')
+  if [[ -z "$orphans" ]]; then
+    echo "No orphaned nvim processes found."
+    return 0
+  fi
+  local count
+  count=$(echo "$orphans" | wc -l | tr -d ' ')
+  echo "Found $count orphaned nvim process(es) (PPID=1):"
+  ps -p $(echo "$orphans" | paste -sd,) -o pid,rss,comm 2>/dev/null
+  echo ""
+  read -rk1 "REPLY?Kill all $count? [y/N] "
+  echo ""
+  [[ "$REPLY" =~ ^[Yy]$ ]] && echo "$orphans" | xargs kill && echo "Done."
+}
 
 # List tmux sessions, highlighting any outside the "core" set
 tmux-sessions() {
@@ -366,13 +408,14 @@ mcd() {
 alias vimp='NVIM_APPNAME="nvim-theprimeagen" nvim'
 alias vm=nvim
 alias vim=nvim
-alias cco='claude'
-alias ccr='claude --resume'
+alias cco='claude --permission-mode plan'
+alias ccr='claude --permission-mode plan --resume'
 alias gmm='gemini'
-alias oc='opencode'
+alias oca='opencode'
+alias occ='opencode --pure -c'
+alias oc='opencode --pure'
 alias co='codex'
-
-alias gk='goku'
+alias gy='agy'
 # ******* End programs ********
 
 
@@ -484,6 +527,7 @@ alias lsl='ls -1hFA | less'
 alias pwdc='pwd|pbcopy'
 # ***************End Viewing/status related ******************************
 
+alias pp='pnpm'
 
 
 # ************************************************************
@@ -644,6 +688,15 @@ alias grs!='git restore'                   # DANGER: Discard uncommitted changes
 # ************************************************************
 alias cfg="/usr/bin/git --git-dir=$HOME/.cfg/ --work-tree=$HOME"
 
+# TODO: 2026_05_05 change all "cfg bare repo" aliases somehow more
+# distiguishable from git alias counterparts to make it harder to accidentally
+# mix up with similar git aliases.
+# maybe just add an extra 'c' to beginning?
+# ccum -> cccum ?
+# ccm  -> cccm  ?
+# cca! -> ccca! ?
+# ccan! -> cccan! ?
+
 # ********** logging **********
 alias clg='cfg log --stat'
 alias clol='cfg log --graph --pretty="%Cred%h%Creset -%C(auto)%d%Creset %s %Cgreen(%ar) %C(bold blue)<%an>%Creset"'
@@ -657,6 +710,22 @@ alias clog='cfg log --oneline --decorate --graph'
 alias cs='cfg status --short'
 alias css='cfg status'
 alias csd='cfg diff'
+
+cstatus() {
+  local line staged worktree path
+
+  printf "%-7s %-8s %s\n" "STAGED" "WORKTREE" "PATH"
+  cfg status --porcelain=v1 | while IFS= read -r line; do
+    staged="${line[1,1]}"
+    worktree="${line[2,2]}"
+    path="${line[4,-1]}"
+
+    [[ "$staged" == " " ]] && staged="-"
+    [[ "$worktree" == " " ]] && worktree="-"
+
+    printf "%-7s %-8s %s\n" "$staged" "$worktree" "$path"
+  done
+}
 
 # Safer staging options
 alias cau='cfg add -u'                     # Stage all modified tracked files
@@ -678,8 +747,9 @@ unalias ccam 2>/dev/null
 
 alias cwip='cfg add -u && cfg commit --no-verify --no-gpg-sign --message "--wip-- [skip ci]"'
 
-# state all modified tracked files and commit them ( NOTE:  seems to work well)
-alias ccum='cfg add -u && cfg commit -m'
+
+# state all modified tracked files and commit them ( seems to work well)
+alias cccum='cfg add -u && cfg commit -m'
 
 alias ccm='cfg commit -m'
 
@@ -830,5 +900,89 @@ memento-env() {
 # }
 # alias run="run_with_pbcopy"
 
+
+
+
+# Generate a terminal command with Codex without running it.
+# Usage: askcmd find an app called alttab
+askcmd() {
+  if [[ $# -eq 0 ]]; then
+    echo "usage: askcmd <describe the command you want>" >&2
+    return 2
+  fi
+
+  local tmp
+  tmp="$(mktemp -t askcmd.XXXXXX)" || return
+
+  codex exec \
+    --ephemeral \
+    --skip-git-repo-check \
+    --sandbox read-only \
+    --color never \
+    -C "$PWD" \
+    -o "$tmp" \
+    "Generate exactly one zsh terminal command for macOS. Do not run it. Return only plain text with this format: command line, then a second line starting with '-- ' containing a short explanation of that command. Do not use numbering, bullets, markdown, code fences, or extra text. Task: $*" >/dev/null 2>/dev/null
+
+  local exit_status=$?
+  if [[ $exit_status -eq 0 ]]; then
+    cat "$tmp"
+    echo
+
+    local command
+    command="$(sed -n '/[^[:space:]]/ { p; q; }' "$tmp")"
+    if [[ -n "$command" ]]; then
+      if ! print -rn -- "$command" | pbcopy; then
+        echo "Failed to copy to clipboard." >&2
+      fi
+    else
+      echo "No command generated to copy." >&2
+      exit_status=1
+    fi
+  fi
+  rm -f "$tmp"
+  return $exit_status
+}
+
+# Generate 4 possible terminal commands with Codex without 
+# running it, and copy the top one to the clipboard
+# Usage: askcmds find an app called alttab
+askcmds() {
+  if [[ $# -eq 0 ]]; then
+    echo "usage: askcmds <describe the command you want>" >&2
+    return 2
+  fi
+
+  local tmp
+  tmp="$(mktemp -t askcmds.XXXXXX)" || return
+
+  codex exec \
+    --ephemeral \
+    --skip-git-repo-check \
+    --sandbox read-only \
+    --color never \
+    -C "$PWD" \
+    -o "$tmp" \
+    "Generate exactly 4 possible zsh terminal commands for macOS. Do not run them. Return only plain text with this repeated format: command line, then a second line starting with '-- ' containing a short explanation of that command. Do not use numbering, bullets, markdown, code fences, or extra text. Task: $*" >/dev/null 2>/dev/null
+
+  local exit_status=$?
+  if [[ $exit_status -eq 0 ]]; then
+    cat "$tmp"
+    echo
+
+    local top_command
+    top_command="$(sed -n '/[^[:space:]]/ { p; q; }' "$tmp")"
+    if [[ -n "$top_command" ]]; then
+      if ! print -rn -- "$top_command" | pbcopy; then
+        echo "Failed to copy to clipboard." >&2
+      fi
+    else
+      echo "No command generated to copy." >&2
+      exit_status=1
+    fi
+  fi
+
+  rm -f "$tmp"
+  return $exit_status
+}
 
 
