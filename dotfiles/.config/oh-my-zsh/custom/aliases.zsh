@@ -743,9 +743,9 @@ ccump() {
             echo ""
             echo "Next steps:"
             echo "  • Review private changes: cfg log -1 --stat"
-            echo "  • Review public changes: cd ~/Projects/dotfilesPublish && git log -1 --stat"
+            echo "  • Review public changes: cd ~/Projects/dot-files-publish && git log -1 --stat"
             echo "  • Push private: cfg push"
-            echo "  • Push public: cd ~/Projects/dotfilesPublish && git push"
+            echo "  • Push public: cd ~/Projects/dot-files-publish && git push"
         else
             echo ""
             echo "⚠️  WARNING: Private commit succeeded but public sync failed"
@@ -829,7 +829,6 @@ memento-env() {
 #     fi
 # }
 # alias run="run_with_pbcopy"
-
 
 
 

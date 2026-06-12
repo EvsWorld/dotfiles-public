@@ -105,6 +105,12 @@ declare -A FILES=(
     # TODO: add these, and others similar, if applicable
 )
 
+# Paths that must never be published, even if they appear in this repo.
+EXCLUDED_PATHS=(
+    "scripts/network-scan"
+    "dotfiles/scripts/network-scan"
+)
+
 # Sanitization function
 sanitize_file() {
     local file="$1"
@@ -156,6 +162,14 @@ if [ "${GENERATE_ALFRED_SHOWCASE:-false}" = true ]; then
     ./generate-alfred-showcase.sh
 fi
 
+# Remove excluded content from the public repo before staging.
+for excluded_path in "${EXCLUDED_PATHS[@]}"; do
+    if [ -e "$excluded_path" ]; then
+        rm -rf "$excluded_path"
+        echo "✓ Removed excluded path: $excluded_path"
+    fi
+done
+
 echo ""
 echo "========================================="
 echo "Committing changes..."
@@ -165,7 +179,9 @@ echo ""
 # Git operations
 if [ -d .git ]; then
     # Add all changes
-    git add -A
+    git add -A -- . \
+        ':(exclude)scripts/network-scan/**' \
+        ':(exclude)dotfiles/scripts/network-scan/**'
 
     # Check if there are changes to commit
     if git diff --cached --quiet; then

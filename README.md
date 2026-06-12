@@ -75,7 +75,8 @@ You'll need to adjust these placeholders for your own system.
 These files are synced from my private dotfiles repo using an automated script (`sync-dotfiles.sh`) that:
 1. Copies files from their source locations
 2. Sanitizes personal data
-3. Commits changes with a timestamp
+3. Removes excluded private paths such as `network-scan`
+4. Commits changes with a timestamp
 
 Last synced: Check git log for latest commit date
 
@@ -130,7 +131,7 @@ This will:
 After running `ccump`, you still need to manually push both repos:
 ```bash
 cfg push                                    # Push private repo
-cd ~/Projects/dotfilesPublish && git push   # Push public repo
+cd ~/Projects/dot-files-publish && git push # Push public repo
 ```
 
 See the `ccump()` function in the dotfiles for implementation details.

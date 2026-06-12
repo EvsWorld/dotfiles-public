@@ -84,7 +84,7 @@ return {
             'nvim%-archive/.*',
             'sessions/.*',
             'package%-lock%.json',
-            'Projects/dotfilesPublish/dotfiles/.*',
+            'Projects/dot-files-publish/dotfiles/.*',
           },
           path_display = { 'truncate' },
           dynamic_preview_title = true,
