@@ -16,8 +16,7 @@ A starting point for Neovim that is:
 
 ## AI tooling
 
-- `copilot.lua` handles inline GitHub Copilot autocomplete.
-- `avante.nvim` is configured to use the Copilot provider and is exposed under the `<leader>v` namespace.
+- `avante.nvim` is currently disabled rather than running through GitHub Copilot.
 - Avante sidebar output is configured to wrap long lines for readability, and the general wrap-control autocmd explicitly treats `Avante` buffers like markdown/text so that local no-wrap defaults do not override it.
 - Core Avante mappings:
   - `<leader>vv` ask/open

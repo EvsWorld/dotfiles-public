@@ -274,6 +274,18 @@ vim.api.nvim_create_autocmd('VimEnter', {
   end,
 })
 
+local hygiene_ok, session_hygiene = pcall(require, 'custom.session_hygiene')
+if hygiene_ok then
+  session_hygiene.setup()
+else
+  vim.schedule(function()
+    vim.notify(
+      'Failed to load custom.session_hygiene: ' .. tostring(session_hygiene),
+      vim.log.levels.WARN
+    )
+  end)
+end
+
 -- Folding settings. To work with treesitter
 -- vim.o.foldexpr = 'nvim_treesitter#foldexpr()'
 -- vim.o.foldlevelstart = 99 -- Start with all folds open

@@ -40,9 +40,8 @@ return {
       -- template = "daily-template.md",
     },
 
-    -- Completion settings - works with blink-cmp
+    -- Completion settings
     completion = {
-      nvim_cmp = false, -- Disable nvim-cmp (you're using blink)
       min_chars = 2, -- Trigger completion after typing 2 chars
     },
 

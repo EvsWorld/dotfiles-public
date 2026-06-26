@@ -233,6 +233,10 @@ fi
 # 1Password shell plugins (injects credentials via Touch ID instead of env vars)
 source ~/.config/op/plugins.sh
 
+# Ensure GitHub CLI resolves to the real binary even if a restored shell
+# session or external startup hook reintroduces a stale 1Password alias.
+unalias gh 2>/dev/null
+
 # bun completions
 [ -s "$HOME/.bun/_bun" ] && source "$HOME/.bun/_bun"
 

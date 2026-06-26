@@ -6,7 +6,7 @@
 # Use Tokyo Night theme to match nvim better
 theme = light:Catppuccin Latte,dark:Catppuccin Mocha
 window-colorspace = srgb
-window-theme = system
+# Keep a single window-theme setting below so window chrome behavior is unambiguous.
 # window-subtitle = working-directory
 # Let tmux control the window title to show session name
 
@@ -29,6 +29,7 @@ font-feature = -liga
 font-feature = -dlig
 
 # WINDOW & LAYOUT  
+# With separate light/dark terminal themes above, auto behaves like system here.
 window-theme = auto
 macos-titlebar-style = hidden
 macos-titlebar-proxy-icon = visible

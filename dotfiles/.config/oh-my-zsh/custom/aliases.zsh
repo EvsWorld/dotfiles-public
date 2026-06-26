@@ -416,6 +416,8 @@ alias occ='opencode --pure -c'
 alias oc='opencode --pure'
 alias co='codex'
 alias gy='agy'
+alias he='hermes'
+
 # ******* End programs ********
 
 

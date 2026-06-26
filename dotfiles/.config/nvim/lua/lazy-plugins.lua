@@ -57,7 +57,6 @@ require('lazy').setup({
   require 'kickstart.plugins.undotree',
   require 'kickstart.plugins.interestingwords',
   require 'kickstart.plugins.nvim-tmux-navigation',
-  require 'kickstart.plugins.copilot',
   require 'kickstart.plugins.statusline',
   require 'kickstart.plugins.scrollview',
   require 'kickstart.plugins.obsidian',

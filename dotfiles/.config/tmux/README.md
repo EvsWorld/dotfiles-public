@@ -119,8 +119,8 @@ Enter window operations mode with `Prefix+w`, then:
 
 ### Other Plugins
 - **vim-tmux-navigator** - Seamless vim/tmux pane navigation
-- **tmux-resurrect** - Save/restore tmux sessions
-- **tmux-continuum** - Auto-save sessions every 15 minutes
+- **tmux-resurrect** - Save/restore tmux sessions, windows, panes, layouts, and directories
+- **tmux-continuum** - Auto-save every 15 minutes and auto-restore layouts on tmux server startup
 - **tmux-yank** - Copy to system clipboard
 - **tmux-fzf-url** - `o` to open URLs from terminal
 - **catppuccin-tmux** - Theme with custom pane borders
@@ -136,6 +136,7 @@ Enter window operations mode with `Prefix+w`, then:
 - Don't exit tmux when closing last session
 - Mouse support enabled
 - History limit: 1 million lines
+- Restore policy: layouts/directories restore automatically, but pane processes do not relaunch
 
 ### Visual
 - Status bar at top (macOS style)
