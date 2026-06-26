@@ -1,141 +1,124 @@
 # Public Dotfiles
 
-test Jan 25 Sun  22:10
-test Jan 25 Sun  22:14
-test 2026_01_25_T22_16 
+This repo is a public snapshot of a heavily customized macOS workflow system I have been refining over time.
 
-Periodic snapshots of my personal dotfiles, sanitized for public sharing.
+The most substantial parts are a large `karabiner.edn` remapping setup, a custom `zsh` workflow layer, heavily tuned `tmux` behavior, and a modular Neovim configuration. Together they make up the shell, keyboard, terminal, and editor environment I use every day.
 
-## Included Files
+This is not meant to be a one-command bootstrap for someone else's machine. It is primarily a referenceable, sanitized version of the parts of my setup that are most worth sharing.
 
-- **`.zshrc`** - Zsh shell configuration with Oh My Zsh
-- **`.config/tmux/tmux.conf`** - Tmux configuration with plugins
-- **`.config/tmux/tmux.reset.conf`** - Tmux keybinding customizations
-- **`.config/oh-my-zsh/custom/aliases.zsh`** - Custom shell aliases
-- **`.config/ghostty/config`** - Ghostty terminal emulator configuration
-- **`.config/nvim/`** - Neovim configuration
-  - Core: `init.lua`, plugin loader, options, keymaps
-  - 37 plugin configurations in `lua/kickstart/plugins/`
-  - Custom plugins: `lua/custom/plugins/`
-  - Plugin lock: `lazy-lock.json`
-- **`alfred/`** - Alfred workflows showcase
-  - **List only** - No actual workflow files (contain API keys)
-  - See `alfred/workflows-i-use.md` for 110+ workflows I use
-  - Find workflows on [Alfred Gallery](https://alfred.app/workflows/)
+## What This Repo Is
 
-## Setup Notes
+This repo exists to publish the parts of my private dotfiles that are both:
 
-These dotfiles reference several external tools and plugins you'll need to install:
+- technically interesting enough to be useful as reference
+- safe to share publicly after sanitization
 
-### Shell & Terminal
-- [Oh My Zsh](https://ohmyz.sh/) - Zsh framework
-- [Ghostty](https://ghostty.org/) - Fast terminal emulator
-- [zoxide](https://github.com/ajeetdsouza/zoxide) - Smart directory navigation
-- [fzf](https://github.com/junegunn/fzf) - Fuzzy finder
+It is less about "here are my dotfiles" and more about how I have designed my local workflow across input, navigation, session management, and editing.
 
-### Zsh Plugins
-- [zsh-autosuggestions](https://github.com/zsh-users/zsh-autosuggestions)
-- [zsh-syntax-highlighting](https://github.com/zsh-users/zsh-syntax-highlighting)
+## Core Areas
 
-### Tmux
-- [TPM](https://github.com/tmux-plugins/tpm) - Tmux Plugin Manager
-- Various tmux plugins (see `tmux.conf` for full list)
+### Karabiner
 
-### Other Tools
-- [eza](https://github.com/eza-community/eza) - Modern `ls` replacement
-- [nvim](https://neovim.io/) - Neovim text editor
+`dotfiles/.config/karabiner.edn`
+
+This is one of the most customized parts of the repo.
+
+- Large Goku/Karabiner configuration with reusable modifiers, layers, simlayers, and templates
+- Extensive app-specific behavior for terminal apps, browsers, editors, chat apps, and macOS utilities
+- Hyper-key driven navigation and command workflows
+- Keyboard Maestro, AppleScript, and shell integration where native shortcuts are weak or inconsistent
+
+If you know Karabiner, this file is the clearest signal of how much thought has gone into the overall system.
+
+### Zsh
+
+`dotfiles/.zshrc`  
+`dotfiles/.config/oh-my-zsh/custom/aliases.zsh`
+
+My shell setup is more than aliases and prompt tweaks.
+
+- Custom aliases and functions built around navigation, editing, search, and project work
+- Workflow helpers for tmux session cleanup, orphaned Neovim processes, and script syncing
+- Shell ergonomics tuned around actual usage, including keybinding conflict fixes and completion improvements
+- A custom theme and shell behavior shaped around long-running terminal use
+
+The shell layer is one of the areas I have iterated on the most.
+
+### tmux
+
+`dotfiles/.config/tmux/tmux.conf`  
+`dotfiles/.config/tmux/tmux.reset.conf`
+
+The tmux config is built around fast movement, low-friction window management, and better long-running session hygiene.
+
+- Vim-aware pane navigation and scrolling behavior
+- Custom keybinding model, including no-prefix navigation for common actions
+- Session and pane management tuned for multi-project terminal workflows
+- Status line and plugin setup focused on visibility, recovery, and ergonomics
+
+This is not stock tmux with a theme added. It reflects a lot of accumulated iteration.
 
 ### Neovim
-- [Neovim](https://neovim.io/) - v0.9+ required
-- [lazy.nvim](https://github.com/folke/lazy.nvim) - Plugin manager (auto-bootstrapped)
-- Plugins auto-install on first launch
-- See `lazy-lock.json` for pinned versions
 
-**Plugin Categories:**
-- **LSP & Completion:** lspconfig, blink-cmp
-- **Git:** gitsigns, git-conflict, diffview
-- **Navigation:** telescope, harpoon, neo-tree, oil
-- **UI:** tokyonight, alpha-dashboard, statusline, which-key
-- **Editing:** treesitter, conform, lint, auto-save
-- **AI:** copilot, avante, gemini
-- **Notes:** obsidian.nvim
-- **Utilities:** todo-comments, markdown-preview, undotree
+`dotfiles/.config/nvim/`
 
-## Sanitization
+My Neovim setup is modular and workflow-oriented rather than minimal for its own sake.
 
-Personal information has been sanitized from these files:
-- Username paths replaced with `$HOME`
-- Hostname replaced with `YOUR-HOSTNAME.local`
-- Obsidian iCloud vault path → `~/Documents/ObsidianVault`
+- Modular Lua configuration with separated options, keymaps, bootstrap, and plugin loading
+- Pinned plugins via `lazy-lock.json`
+- Customizations around navigation, LSP/completion, Git tooling, notes, AI tools, and terminal integration
+- Built to fit the surrounding tmux, shell, and keyboard workflow instead of acting as a standalone editor island
 
-You'll need to adjust these placeholders for your own system.
+## Supporting Pieces
 
-## Sync Process
+### Ghostty
 
-These files are synced from my private dotfiles repo using an automated script (`sync-dotfiles.sh`) that:
-1. Copies files from their source locations
-2. Sanitizes personal data
-3. Removes excluded private paths such as `network-scan`
-4. Commits changes with a timestamp
+`dotfiles/.config/ghostty/config`
 
-Last synced: Check git log for latest commit date
+Terminal configuration that supports the rest of the workflow, including theme choices, keybindings, and tmux-friendly behavior.
 
-### Setting Up Your Own Sync (Optional)
+### Alfred
 
-If you want to fork this repo and maintain your own public dotfiles:
+`dotfiles/alfred/`
 
-1. **Create your config file:**
-   ```bash
-   cp .sync-config.example .sync-config
-   # Edit .sync-config with your username and hostname
-   ```
+This section is intentionally lightweight.
 
-2. **Edit the source files list in `sync-dotfiles.sh`** to match your dotfiles locations
+- Includes a generated list of Alfred workflows I use
+- Does not include actual workflow bundles, since those may contain secrets, tokens, or personal configuration
 
-3. **Add a git alias** (optional, for convenience):
-   ```bash
-   git config alias.sync-dotfiles '!sh /path/to/this/repo/sync-dotfiles.sh'
-   ```
+I keep it here as supporting workflow context, not as the main attraction of the repo.
 
-   Or if using a bare repo setup like `cfg`:
-   ```bash
-   cfg config alias.publish-dotfiles '!sh /path/to/this/repo/sync-dotfiles.sh'
-   ```
+## Public Snapshot Notes
 
-4. **Run the sync:**
-   ```bash
-   # With timestamp commit message (default):
-   ./sync-dotfiles.sh
-   # Or: cfg publish-dotfiles
+These files are synced from a private setup and sanitized for public sharing.
 
-   # With custom commit message:
-   ./sync-dotfiles.sh "Add new vim keybindings"
-   ```
+Examples of things that are cleaned or replaced:
 
-The `.sync-config` file is gitignored, so your personal info stays private.
+- username-based paths replaced with `$HOME`
+- hostname values replaced with `YOUR-HOSTNAME.local`
+- private vault paths replaced with safer placeholders
 
-## Unified Commit Workflow (Advanced)
+Some files are intentionally omitted because they are either too machine-specific or too sensitive to publish directly.
 
-If you use a bare git repo for your private dotfiles (like the `cfg` setup), you can create a unified command that commits to both repos at once.
+The repo also includes a helper script, `sync-dotfiles.sh`, which handles copying and sanitizing files before publishing. That script is useful repo infrastructure, but it is not the main point of the project.
 
-**The `ccump` shell function** (cfg commit + publish):
-```bash
-ccump "Add new vim keybindings"
-```
+## Using This Repo
 
-This will:
-1. Stage tracked files and commit to your private cfg bare repo
-2. Run the sync script to sanitize and commit to this public repo
-3. Use the same commit message for both commits
+If you want to borrow ideas from this repo, the best approach is to treat it as reference material rather than a drop-in setup.
 
-After running `ccump`, you still need to manually push both repos:
-```bash
-cfg push                                    # Push private repo
-cd ~/Projects/dot-files-publish && git push # Push public repo
-```
+- Read the Karabiner, Zsh, tmux, and Neovim configs directly
+- Copy the patterns that fit your own workflow
+- Adjust any placeholders, paths, and machine-specific assumptions for your system
 
-See the `ccump()` function in the dotfiles for implementation details.
+Some external tools and plugins are required if you want to reuse pieces of the setup, including:
+
+- Oh My Zsh
+- Karabiner-Elements and Goku
+- tmux and TPM
+- Ghostty
+- Neovim and `lazy.nvim`
+- utilities such as `fzf`, `zoxide`, and `eza`
 
 ## License
 
-Feel free to use these configurations as inspiration for your own dotfiles.
+Feel free to use these configurations as inspiration for your own setup.
