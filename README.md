@@ -46,7 +46,9 @@ The shell layer is one of the areas I have iterated on the most.
 
 ### tmux
 
-`dotfiles/.config/tmux/tmux.conf`
+- `dotfiles/.config/tmux/tmux.conf`
+- `dotfiles/.config/tmux/bindings.conf`
+- `dotfiles/.config/tmux/scripts/`
 
 The tmux config is built around fast movement, low-friction window management, and better long-running session hygiene.
 
