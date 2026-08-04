@@ -46,8 +46,7 @@ The shell layer is one of the areas I have iterated on the most.
 
 ### tmux
 
-`dotfiles/.config/tmux/tmux.conf`  
-`dotfiles/.config/tmux/tmux.reset.conf`
+`dotfiles/.config/tmux/tmux.conf`
 
 The tmux config is built around fast movement, low-friction window management, and better long-running session hygiene.
 
@@ -100,7 +99,7 @@ Examples of things that are cleaned or replaced:
 
 Some files are intentionally omitted because they are either too machine-specific or too sensitive to publish directly.
 
-The repo also includes a helper script, `sync-dotfiles.sh`, which handles copying and sanitizing files before publishing. That script is useful repo infrastructure, but it is not the main point of the project.
+The repo also includes a helper script, `sync-dotfiles.sh`, which handles copying and sanitizing files before publishing. Its source manifest is an explicit allowlist: only listed files are copied. Before changing the public snapshot, the script validates the entire allowlist and stops if any source is missing. This prevents a retired private file from silently leaving a stale public copy behind.
 
 ## Using This Repo
 

@@ -48,7 +48,6 @@ echo ""
 declare -A FILES=(
     ["$HOME/.zshrc"]="dotfiles/.zshrc"
     ["$HOME/.config/tmux/tmux.conf"]="dotfiles/.config/tmux/tmux.conf"
-    ["$HOME/.config/tmux/tmux.reset.conf"]="dotfiles/.config/tmux/tmux.reset.conf"
     ["$HOME/.config/oh-my-zsh/custom/aliases.zsh"]="dotfiles/.config/oh-my-zsh/custom/aliases.zsh"
     ["$HOME/.config/oh-my-zsh/custom/evan_robbyrussell_theme.zsh-theme"]="dotfiles/.config/oh-my-zsh/custom/evan_robbyrussell_theme.zsh-theme"
     ["$HOME/.config/ghostty/config"]="dotfiles/.config/ghostty/config"
@@ -57,7 +56,6 @@ declare -A FILES=(
     ["$HOME/.config/nvim/lua/lazy-bootstrap.lua"]="dotfiles/.config/nvim/lua/lazy-bootstrap.lua"
     ["$HOME/.config/nvim/lua/lazy-plugins.lua"]="dotfiles/.config/nvim/lua/lazy-plugins.lua"
     ["$HOME/.config/nvim/lua/kickstart/plugins/interestingwords.lua"]="dotfiles/.config/nvim/lua/kickstart/plugins/interestingwords.lua"
-    ["$HOME/.config/nvim/lua/kickstart/plugins/auto-save.lua"]="dotfiles/.config/nvim/lua/kickstart/plugins/auto-save.lua"
     ["$HOME/.config/nvim/lua/kickstart/plugins/catppuccin.lua"]="dotfiles/.config/nvim/lua/kickstart/plugins/catppuccin.lua"
     ["$HOME/.config/nvim/lua/kickstart/plugins/conform.lua"]="dotfiles/.config/nvim/lua/kickstart/plugins/conform.lua"
     ["$HOME/.config/nvim/lua/kickstart/plugins/harpoon.lua"]="dotfiles/.config/nvim/lua/kickstart/plugins/harpoon.lua"
@@ -90,7 +88,6 @@ declare -A FILES=(
     ["$HOME/.config/nvim/lua/kickstart/plugins/undotree.lua"]="dotfiles/.config/nvim/lua/kickstart/plugins/undotree.lua"
     ["$HOME/.config/nvim/lua/kickstart/plugins/vim-apm.lua"]="dotfiles/.config/nvim/lua/kickstart/plugins/vim-apm.lua"
     ["$HOME/.config/nvim/lua/kickstart/plugins/which-key.lua"]="dotfiles/.config/nvim/lua/kickstart/plugins/which-key.lua"
-    ["$HOME/.config/nvim/lua/kickstart/plugins/99.lua"]="dotfiles/.config/nvim/lua/kickstart/plugins/99.lua"
     ["$HOME/.config/nvim/lua/kickstart/plugins/code-bridge.lua"]="dotfiles/.config/nvim/lua/kickstart/plugins/code-bridge.lua"
     ["$HOME/.config/nvim/lua/kickstart/plugins/colorful-winsep.lua"]="dotfiles/.config/nvim/lua/kickstart/plugins/colorful-winsep.lua"
     ["$HOME/.config/nvim/lua/kickstart/health.lua"]="dotfiles/.config/nvim/lua/kickstart/health.lua"
@@ -101,9 +98,27 @@ declare -A FILES=(
     ["$HOME/.config/tmux/README.md"]="dotfiles/.config/tmux/README.md"
     ["$HOME/.config/nvim/README.md"]="dotfiles/.config/nvim/README.md"
     ["$HOME/.config/ghostty/README.md"]="dotfiles/.config/ghostty/README.md"
-    ["$HOME/.config/oh-my-zsh/custom/README.md"]="dotfiles/.config/oh-my-zsh/custom/README.md"
     # TODO: add these, and others similar, if applicable
 )
+
+# Validate the complete allowlist before changing the public snapshot. A missing
+# source usually means the private config was moved or retired; continuing would
+# leave its old public copy behind and make the snapshot silently stale.
+missing_sources=()
+for src in "${!FILES[@]}"; do
+    if [ ! -f "$src" ]; then
+        missing_sources+=("$src")
+    fi
+done
+
+if [ "${#missing_sources[@]}" -gt 0 ]; then
+    echo "❌ ERROR: Allowlisted source files are missing:"
+    printf '  - %s\n' "${missing_sources[@]}"
+    echo ""
+    echo "No files were copied or committed."
+    echo "Restore each source, or remove its allowlist entry and public copy."
+    exit 1
+fi
 
 # Paths that must never be published, even if they appear in this repo.
 EXCLUDED_PATHS=(
@@ -132,11 +147,6 @@ sanitize_file() {
 # Copy and sanitize each file
 for src in "${!FILES[@]}"; do
     dest="${FILES[$src]}"
-
-    if [ ! -f "$src" ]; then
-        echo "⚠️  WARNING: Source file not found: $src"
-        continue
-    fi
 
     # Create destination directory if needed
     dest_dir=$(dirname "$dest")
