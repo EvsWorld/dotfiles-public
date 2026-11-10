@@ -49,6 +49,7 @@ The shell layer is one of the areas I have iterated on the most.
 - `dotfiles/.config/tmux/tmux.conf`
 - `dotfiles/.config/tmux/bindings.conf`
 - `dotfiles/.config/tmux/scripts/`
+- `dotfiles/.config/tmux/docs/adr/`
 
 The tmux config is built around fast movement, low-friction window management, and better long-running session hygiene.
 
@@ -58,6 +59,8 @@ The tmux config is built around fast movement, low-friction window management, a
 - Status line and plugin setup focused on visibility, recovery, and ergonomics
 
 This is not stock tmux with a theme added. It reflects a lot of accumulated iteration.
+
+The `docs/adr/` directory holds the architecture decision records behind the config: what each design choice was, what it replaced, and why.
 
 ### Neovim
 
@@ -77,6 +80,12 @@ My Neovim setup is modular and workflow-oriented rather than minimal for its own
 `dotfiles/.config/ghostty/config`
 
 Terminal configuration that supports the rest of the workflow, including theme choices, keybindings, and tmux-friendly behavior.
+
+### Claude Code and Codex hooks
+
+`dotfiles/scripts/llm-hook-*.sh`
+
+Hooks for AI coding agents: one blocks dangerous shell commands before they run, and two log each session when it stops or ends.
 
 ### Alfred
 
@@ -98,10 +107,13 @@ Examples of things that are cleaned or replaced:
 - username-based paths replaced with `$HOME`
 - hostname values replaced with `YOUR-HOSTNAME.local`
 - private vault paths replaced with safer placeholders
+- employer name replaced with `employer`
+- private project names replaced with configured stand-ins
 
 Some files are intentionally omitted because they are either too machine-specific or too sensitive to publish directly.
 
 The repo also includes a helper script, `sync-dotfiles.sh`, which handles copying and sanitizing files before publishing. Its source manifest is an explicit allowlist: only listed files are copied. Before changing the public snapshot, the script validates the entire allowlist and stops if any source is missing. This prevents a retired private file from silently leaving a stale public copy behind.
+After sanitizing, the script scans everything it is about to commit for the configured username, hostname, employer name, private terms, and iCloud Obsidian vault path, and stops without committing if any remain.
 
 ## Using This Repo
 

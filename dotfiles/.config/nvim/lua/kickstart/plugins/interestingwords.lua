@@ -32,7 +32,9 @@ return {
         '#FF6D00', -- orange accent
       },
       search_count = true,
-      navigation = true,
+      -- Keep n/N owned by Neovim's latest / or ? search. Plugin navigation
+      -- changes targets when the cursor lands on another highlighted word.
+      navigation = false,
       -- scroll_offset = 5, -- lines to keep visible when jumping
       -- scroll_center = false,
       -- NOTE:  will act as a toggle, so you can use it to search and highlight or remove search

@@ -7,10 +7,19 @@ MY_USERNAME="your-username"
 # Your computer's hostname (check with: hostname)
 MY_HOSTNAME="your-computer.local"
 
+# Optional: your employer's name. Published files get "employer" instead,
+# keeping lowercase, Capitalized, and UPPERCASE forms. Leave empty to skip.
+MY_ORG=""
+
+# Optional: private terms (such as project names) and the stand-ins published
+# in their place. Each term is also added to the leak check.
+declare -A MY_PRIVATE_TERMS=(
+    # ["my-private-project"]="example-project"
+)
+
 # Add any additional personal patterns to sanitize here in the future
 # Example:
 # MY_EMAIL="your-email@example.com"
-# MY_ORG="your-company-name"
 
 # Alfred Workflows Showcase
 # Set to true to generate a public showcase of Alfred workflows you use

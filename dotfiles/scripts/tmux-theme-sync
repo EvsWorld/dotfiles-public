@@ -1,0 +1,83 @@
+#!/bin/sh
+# Keep tmux's catppuccin flavor in step with the system appearance.
+#
+# Called from the tmux status line (so, every status-interval) and from the
+# client-attached hook. It must therefore be cheap, silent, and safe to run
+# repeatedly: it prints nothing and touches tmux only when the flavor is
+# actually wrong. On a match it exits before doing any work.
+#
+# Why this lives in a script rather than in tmux.conf:
+# tmux.conf stays free of any macOS probe so it behaves identically over SSH
+# and on Linux (ADR 031's portability rule). The probe is quarantined here,
+# where `system-appearance` already degrades to `dark` on every non-macOS
+# platform - which makes this whole script a no-op there rather than a source
+# of wrong answers. See ADR 032.
+#
+# Manual override:
+#   `prefix T` sets @theme_override to force a flavor. It wins until the system
+#   appearance actually *changes*, at which point the system reclaims control.
+#   @theme_last_system is the stored previous reading that makes "actually
+#   changes" detectable - without it we could not tell a deliberate override
+#   from a flavor that simply had not caught up yet.
+
+set -eu
+
+CONF="${TMUX_CONF:-$HOME/.config/tmux/tmux.conf}"
+
+# Resolve the probe without depending on PATH. The tmux status line runs
+# commands under a minimal environment, where ~/.local/bin is not guaranteed.
+APPEARANCE="$HOME/.local/bin/system-appearance"
+[ -x "$APPEARANCE" ] || APPEARANCE="$HOME/scripts/system-appearance"
+[ -x "$APPEARANCE" ] || exit 0
+
+# Never start a server just to theme it. Every caller runs inside tmux already.
+command -v tmux >/dev/null 2>&1 || exit 0
+tmux list-sessions >/dev/null 2>&1 || exit 0
+
+case "$("$APPEARANCE")" in
+  light) system_flavor=latte ;;
+  *) system_flavor=mocha ;;
+esac
+
+# `show -gv` on an unset user option is an error on some tmux versions and an
+# empty string on others; normalize both to empty.
+last_system="$(tmux show -gv @theme_last_system 2>/dev/null || true)"
+override="$(tmux show -gv @theme_override 2>/dev/null || true)"
+current="$(tmux show -gv @catppuccin_flavor 2>/dev/null || true)"
+
+if [ "$system_flavor" != "$last_system" ]; then
+  # The system genuinely flipped, so it takes control back from any override.
+  tmux set -g @theme_last_system "$system_flavor"
+  tmux set -g @theme_override ''
+  override=''
+fi
+
+if [ -n "$override" ]; then
+  desired="$override"
+else
+  desired="$system_flavor"
+fi
+
+[ "$desired" = "$current" ] && exit 0
+
+# Re-sourcing is what actually repaints: the catppuccin plugin reads
+# @catppuccin_flavor once, at source time, via `source -F`. Setting the
+# variable alone changes nothing visible.
+#
+# This does not recurse. The re-source runs this script again through the
+# status line, but by then `desired` equals `current` and it exits above.
+tmux set -g @catppuccin_flavor "$desired"
+
+# Clearing the palette first is mandatory, not defensive.
+#
+# The theme files seed every color with `set -ogq @thm_... "#hex"`, and -o
+# "prevents setting an option that is already set" (man tmux). Once @thm_* hold
+# one flavor's values, sourcing the other flavor's file is a silent no-op on
+# every single assignment. The symptom is precise and confusing: the flavor
+# variable flips, `source -F` loads the right file, and nothing on screen
+# changes. Unsetting lets the incoming file seed them for real.
+tmux show -g 2>/dev/null | sed -n 's/^\(@thm_[A-Za-z0-9_]*\).*/\1/p' | while read -r opt; do
+  tmux set -gu "$opt" 2>/dev/null || true
+done
+
+tmux source-file "$CONF"

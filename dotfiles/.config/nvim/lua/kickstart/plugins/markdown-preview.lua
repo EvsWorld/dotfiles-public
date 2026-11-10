@@ -5,7 +5,7 @@ return {
     {
       -- TODO: fix
       -- ERROR: E492: Not an editor command: MarkdownPreviewToggle
-      '<leader>kmt',
+      '<leader>\\mt',
       ft = 'markdown',
       '<cmd>MarkdownPreviewToggle<cr>',
       desc = 'Markdown Preview',

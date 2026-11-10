@@ -6,6 +6,7 @@ return {
   event = { 'BufReadPre *.md', 'BufNewFile *.md' }, -- Load on markdown file events
   dependencies = {
     'nvim-lua/plenary.nvim',
+    'nvim-telescope/telescope.nvim',
   },
   opts = {
     workspaces = {
@@ -18,6 +19,17 @@ return {
       --   name = "work",
       --   path = "~/Documents/Work",
       -- },
+    },
+
+    notes_subdir = 'inbox',
+    new_notes_location = 'notes_subdir',
+
+    link = {
+      style = 'markdown',
+    },
+
+    attachments = {
+      folder = 'attachments',
     },
 
     -- Optional: Specify how to name new notes
@@ -45,58 +57,19 @@ return {
       min_chars = 2, -- Trigger completion after typing 2 chars
     },
 
-    -- Use telescope for pickers
+    picker = {
+      name = 'telescope.nvim',
+    },
+
+    -- Keep Obsidian's conceal/highlight UI disabled.
     ui = {
-      enable = false, -- Disable built-in UI (use Telescope instead)
+      enable = false,
     },
 
+    -- Preserve existing metadata without adding or rewriting frontmatter on save.
     frontmatter = {
-      func = function(note)
-        local out = { id = note.id }
-
-        -- Add title if provided
-        if note.title then
-          out.title = note.title
-        end
-
-        -- Preserve aliases and tags from note object
-        if note.aliases and #note.aliases > 0 then
-          out.aliases = note.aliases
-        end
-        if note.tags and #note.tags > 0 then
-          out.tags = note.tags
-        end
-
-        -- -- Only set created timestamp if it doesn't already exist (preserve existing value)
-        -- if note.metadata and note.metadata.created then
-        --   out.created = note.metadata.created
-        -- else
-        --   -- Only add created for new notes (not in Bear folder)
-        --   local bear_path =
-        --     vim.fn.expand '~/Documents/ObsidianVault'
-        --   local note_path = tostring(note.path)
-        --   if not note_path:match('^' .. bear_path) then
-        --     out.created = os.date '%Y-%m-%d %H:%M'
-        --   end
-        -- end
-
-        -- Preserve all other metadata fields
-        if note.metadata ~= nil and not vim.tbl_isempty(note.metadata) then
-          for k, v in pairs(note.metadata) do
-            -- Don't override fields we've already explicitly set
-            if k ~= 'created' and k ~= 'title' then
-              out[k] = v
-            end
-          end
-        end
-
-        return out
-      end,
+      enabled = false,
     },
-
-    -- Optional: Configure note frontmatter
-    -- Disable frontmatter handling to prevent modifying existing notes
-    -- disable_frontmatter = true,
 
     -- Optional: Templates folder
     templates = {
@@ -117,29 +90,31 @@ return {
   keys = {
     -- Note navigation
     { '<leader>on', '<cmd>Obsidian new<cr>', desc = '[O]bsidian [N]ew note' },
-    { '<leader>oo', '<cmd>Obsidian quick-switch<cr>', desc = '[O]bsidian [O]pen note' },
-    -- { '<leader>os', '<cmd>Obsidian search<cr>', desc = '[O]bsidian [S]earch' },
-    { '<leader>so', '<cmd>Obsidian search<cr>', desc = '[O]bsidian [S]earch' },
+    { '<leader>oo', '<cmd>Obsidian quick_switch<cr>', desc = '[O]bsidian [O]pen note' },
+    { '<leader>od', '<cmd>Obsidian dailies<cr>', desc = '[O]bsidian [D]aily notes' },
     { '<leader>ot', '<cmd>Obsidian today<cr>', desc = '[O]bsidian [T]oday' },
     { '<leader>oy', '<cmd>Obsidian yesterday<cr>', desc = '[O]bsidian [Y]esterday' },
     { '<leader>ob', '<cmd>Obsidian backlinks<cr>', desc = '[O]bsidian [B]acklinks' },
     { '<leader>ol', '<cmd>Obsidian links<cr>', desc = '[O]bsidian [L]inks' },
-    -- TODO: how to search by tags?
+    { '<leader>og', '<cmd>Obsidian tags<cr>', desc = '[O]bsidian ta[G]s' },
+    { '<leader>or', '<cmd>Obsidian rename<cr>', desc = '[O]bsidian [R]ename note' },
+    { '<leader>om', '<cmd>Obsidian template<cr>', desc = '[O]bsidian te[M]plate' },
+    { '<leader>oa', '<cmd>Obsidian open<cr>', desc = '[O]bsidian open in [A]pp' },
     -- TODO: how to exclude some things?
     {
       'gf',
-      '<cmd>Obsidian follow<cr>',
+      '<cmd>Obsidian follow_link<cr>',
       desc = 'Follow Obsidian link under cursor',
       ft = 'markdown',
     },
     {
       '<leader>op',
-      '<cmd>Obsidian paste-img<cr>',
+      '<cmd>Obsidian paste_img<cr>',
       desc = '[O]bsidian [P]aste image from clipboard',
     },
     {
       '<leader>oe',
-      '<cmd>Obsidian extract-note<cr>',
+      '<cmd>Obsidian extract_note<cr>',
       mode = 'v',
       desc = '[O]bsidian [E]xtract note (Create new note from visual selection)',
     },
@@ -149,15 +124,5 @@ return {
       mode = 'v',
       desc = '[O]bsidian [I]nsert link',
     },
-    -- TODO: make this work
-    -- {
-    --   '<leader>oa',
-    --   function()
-    --     local filepath = vim.fn.expand '%:p'
-    --     vim.fn.jobstart { 'open', '-a', 'Obsidian', filepath }
-    --   end,
-    --   desc = '[O]bsidian open in [A]pp',
-    --   ft = 'markdown',
-    -- },
   },
 }

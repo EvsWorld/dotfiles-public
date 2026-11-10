@@ -1,0 +1,30 @@
+#!/bin/sh
+# Print the system's current appearance: either `light` or `dark`.
+#
+# macOS is the only platform here that can actually be asked, so every other
+# platform answers `dark`. That fallback is deliberate rather than lazy: it is
+# what lets callers keep a single code path and still behave sanely over SSH
+# and on Linux, which is the portability rule ADR 031 established.
+#
+# `defaults read -g AppleInterfaceStyle` prints `Dark` in dark mode and exits
+# non-zero with no output in light mode. The *absence* of the key is the
+# light-mode signal, which is why the error is discarded rather than treated as
+# a failure - there is no `Light` value to match on.
+#
+# Auto-switching ("Appearance: Auto") needs no special handling: macOS rewrites
+# this same key when it flips, so a fresh read is always the current truth.
+
+set -eu
+
+case "$(uname -s)" in
+  Darwin)
+    if defaults read -g AppleInterfaceStyle 2>/dev/null | grep -qi 'dark'; then
+      echo dark
+    else
+      echo light
+    fi
+    ;;
+  *)
+    echo dark
+    ;;
+esac

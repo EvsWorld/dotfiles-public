@@ -15,9 +15,34 @@
 function truncated_cwd {
   if [[ $PWD == $HOME ]]; then
     echo "~"
+    return
+  fi
+
+  local path prefix
+  if [[ $PWD == $HOME/* ]]; then
+    path=${PWD#$HOME/}
+    prefix="~/"
   else
-    local dir=$(basename $PWD)
-    # Replace any name starting with 'shipper-integrations-' to 'si-<remainder>'
+    path=${PWD#/}
+    prefix="/"
+  fi
+
+  if [[ -z $path ]]; then
+    echo "/"
+    return
+  fi
+
+  local -a parts displayed_parts
+  parts=("${(@s:/:)path}")
+
+  if (( ${#parts} > 3 )); then
+    parts=("${(@)parts[-3,-1]}")
+    prefix="…/"
+  fi
+
+  local dir
+  for dir in "${parts[@]}"; do
+    # Replace project-specific prefixes with their compact forms.
     if [[ $dir == shipper-integrations-* ]]; then
       dir="si-${dir#shipper-integrations-}"
     fi
@@ -34,13 +59,16 @@ function truncated_cwd {
       dir="shpmnt-${dir#shipment-}"
     fi
 
-    # If the resulting name is still over 20 chars, truncate and append ..
+    # If the resulting name is still over 20 chars, collapse the middle
+    # so both the start and end (usually the distinguishing part) survive.
     if [[ ${#dir} -gt 20 ]]; then
-      echo "${dir:0:20}.."
-    else
-      echo $dir
+      dir="${dir:0:9}…${dir: -9}"
     fi
-  fi
+
+    displayed_parts+=("$dir")
+  done
+
+  echo "${prefix}${(j:/:)displayed_parts}"
 }
 
 local ret_status="%(?:%{$fg_bold[green]%}➜:%{$fg_bold[red]%}➜)"
@@ -61,4 +89,3 @@ ZSH_THEME_GIT_PROMPT_CLEAN="%{$fg[blue]%})"
  
 # With day and 24 hr time
 PROMPT='%{$fg[yellow]%}%D{%f} %T'$PROMPT
-

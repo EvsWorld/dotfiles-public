@@ -11,13 +11,13 @@ window-colorspace = srgb
 # Let tmux control the window title to show session name
 
 # FONT & DISPLAY
-font-family = "Fira Code"
+font-family = "FiraCode Nerd Font Mono"
 font-feature = +liga
-font-size = 10.5
+font-size = 15.5
 cursor-style = bar
 cursor-style-blink = true
 # cursor-opacity     = 0.8
-cursor-opacity = 0.5
+cursor-opacity = 1.0
 cursor-invert-fg-bg            = true
 bold-is-bright                 = true
 adjust-cursor-thickness        = 3
@@ -28,7 +28,7 @@ font-feature = -calt
 font-feature = -liga
 font-feature = -dlig
 
-# WINDOW & LAYOUT  
+# WINDOW & LAYOUT
 # With separate light/dark terminal themes above, auto behaves like system here.
 window-theme = auto
 macos-titlebar-style = hidden
@@ -36,7 +36,7 @@ macos-titlebar-proxy-icon = visible
 window-padding-x = 8
 window-padding-y = 8
 window-decoration = true
-window-title-font-family = "Fira Code"
+window-title-font-family = "FiraCode Nerd Font Mono"
 macos-non-native-fullscreen = true
 
 # KEYBINDINGS
@@ -52,16 +52,31 @@ keybind = super+shift+k=goto_split:up
 keybind = super+shift+l=goto_split:right
 keybind = super+shift+h=goto_split:left
 
-# TMUX RESIZE - Send custom escape sequences for Alt+Shift+hjkl
-# These enable tmux pane resizing to work consistently
-keybind = alt+shift+h=text:\x1bH
-keybind = alt+shift+j=text:\x1bJ
-keybind = alt+shift+k=text:\x1bK
-keybind = alt+shift+l=text:\x1bL
+# TMUX RESIZE - Ctrl+Option+hjkl emits ESC + uppercase letter. tmux binds those
+# bytes as M-H/J/K/L (tmux/bindings.conf) and nvim as <M-H> (smart-splits.lua);
+# neither ever sees the modifiers, only these bytes.
+#
+# ESC+uppercase is deliberate, not incidental. This chord's DEFAULT encoding
+# would be ESC + a control character (ctrl+h is 0x08 Backspace, ctrl+j is 0x0A
+# Line Feed), and C-h/j/k/l are already pane navigation. Uppercase letters carry
+# no control meaning, so they cannot collide. See ADR 021.
+keybind = ctrl+alt+h=text:\x1bH
+keybind = ctrl+alt+j=text:\x1bJ
+keybind = ctrl+alt+k=text:\x1bK
+keybind = ctrl+alt+l=text:\x1bL
+
+# Retired alt+shift chord, explicitly ignored rather than deleted: with
+# macos-option-as-alt = true, ESC+uppercase is Ghostty's DEFAULT encoding for
+# alt+shift+h, so simply removing these lines would leave the old chord silently
+# resizing with nothing in the config to explain why.
+keybind = alt+shift+h=ignore
+keybind = alt+shift+j=ignore
+keybind = alt+shift+k=ignore
+keybind = alt+shift+l=ignore
 
 # QUICK TERMINAL
 # #TODO make this always open in my mac screen. not the other external monitors
-keybind = global:super+ctrl+shift+alt+9=toggle_quick_terminal
+# keybind = global:super+ctrl+shift+alt+9=toggle_quick_terminal
 quick-terminal-position = left
 quick-terminal-screen = macos-menu-bar
 
@@ -77,8 +92,11 @@ scrollback-limit = 10000
 # SHELL
 shell-integration = zsh
 
-# TODO: maybe turn off cursor, because its making new shells start slow
-# Enable cursor feature for OSC 133 prompt marking support
+# `cursor` is deliberately omitted from this list: it added noticeable latency
+# when opening new shells and panes. The cost of leaving it off is that OSC 133
+# prompt marking is unavailable, so anything depending on prompt marks -- most
+# notably `jump_to_prompt` -- cannot work. Revisit together; see the Ghostty
+# section of ~/.config/docs/TODO.md.
 shell-integration-features = sudo,title
 
 # ********************** experiments **************

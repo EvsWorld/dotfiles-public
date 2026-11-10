@@ -57,27 +57,28 @@ return {
         },
       },
 
-      -- TODO: implement some way of documenting all mappings (tmux too)
+      -- TODO: implement some way of documenting all mappings
+      -- (tmux side is done: bindings carry `bind -N` notes, and Prefix+w /
+      --  Prefix+? generate hints from them. See ~/.config/tmux/docs/adr/014-native-binding-notes.md)
 
       -- Document existing key chains
       spec = {
         { 'g', group = '[G] Group' },
         { 'gr', group = '[G]r Group' },
         { 'gl', group = '[G]o to [L]ast Position Group' },
-        { '<leader>f', group = '[F]ind [F]ile Group' },
         { '<leader>f', group = '[F]ind Group' },
+        { '<leader>fc', group = '[F]ind [C]ode' },
         -- TODO: revisit toggle group. doesnt have much right now
         { '<leader>t', group = '[T]oggle Group (miscellaneous/TODO)' },
-        { '<leader>s', group = '[S]earch grep Group' },
         { '<leader>w', group = '[W]indow Group' },
-        { '<leader>ws', group = '[W]indow [S]wap Group' },
-        { '<leader>ks', group = '[k](Utility) [S]ource Group' },
-        { '<leader>kk', group = '[K][K]arabiner meta search Group' },
-        { '<leader>kq', group = '[K][Q]uit Group' },
-        { '<leader>km', group = '[K][M]arkdown Group' },
-        { '<leader>kt', group = '[K][T]ext Width, Wrapping Group' },
+        { '<leader>\\', group = 'Utility Group' },
+        { '<leader>\\s', group = 'Utility [S]ource Group' },
+        { '<leader>\\k', group = 'Utility [K]arabiner meta search Group' },
+        { '<leader>\\q', group = 'Utility [Q]uit Group' },
+        { '<leader>\\m', group = 'Utility [M]arkdown Group' },
+        { '<leader>\\t', group = 'Utility [T]ext Width, Wrapping Group' },
         -- TODO:  misc: miscellaneous 
-        { '<leader>kh', group = '[K][H] Group (miscellaneous/TODO)' },
+        { '<leader>\\h', group = 'Utility [H] Group (miscellaneous/TODO)' },
         { '<leader>o', group = '[O]bsidian Group' },
         { '<leader>v', group = 'A[V]ante' },
         { '<leader>vv', desc = 'Avante ask' },
@@ -89,17 +90,21 @@ return {
         { '<leader>vm', desc = 'Avante model picker' },
         { '<leader>vk', desc = 'Avante stop request' },
         { '<leader>vc', desc = 'Avante add current buffer' },
-        { '<leader>h', group = 'Git [H]unk', mode = { 'n', 'v' } },
         { '<leader>g', group = '[G]it', mode = { 'n', 'v' } },
+        { '<leader>gh', group = '[G]it [H]unk', mode = { 'n', 'v' } },
         { '<leader>gv', group = '[G]it [V]iew' },
         { '<leader>gx', group = '[G]it Confli[X]t' },
         { '<leader>gt', group = '[G]it [T]oggle' },
         { '<leader>c', group = '[C]olor ' },
         { '<leader>s', group = '[S]earch Group' },
+        { '<leader>sa', group = '[S]earch [A]ll sources' },
+        { '<leader>sc', group = '[S]earch [C]ode' },
+        { '<leader>so', group = '[S]earch [O]bsidian' },
+        { '<leader>soA', desc = '[S]earch [O]bsidian: [A]rchive' },
         { '<leader>sl', group = '[S]earch [L] Group' },
         { '<leader>sw', group = '[S]earch [w]ord Group' },
         { '<leader>sW', group = '[S]earch [W]ORD Group' },
-        { '<leader>j', group = 'Write and format ( Not a Group )' },
+        { '<leader>h', desc = 'Format and write buffer' },
       },
     },
   },

@@ -59,8 +59,10 @@ return {
       local action_state = require 'telescope.actions.state'
       local lga_actions = require 'telescope-live-grep-args.actions'
 
-      -- Custom action to set search register when opening files from grep
-      local function set_search_register(prompt_bufnr)
+      -- Push the current grep prompt into the `/` register and turn on the
+      -- transient highlight, so handing results off to a file or the quickfix
+      -- list keeps matches highlighted (e.g. when jumping with ]q / [q).
+      local function set_search_from_prompt(prompt_bufnr)
         local picker = action_state.get_current_picker(prompt_bufnr)
         local prompt = picker:_get_prompt()
 
@@ -70,27 +72,61 @@ return {
           local search_term = vim.fn.escape(prompt, '\\/.*$^~[]')
           -- Set the search register
           vim.fn.setreg('/', search_term)
-          -- Enable search highlighting
-          vim.cmd 'set hlsearch'
+          -- Keep Telescope handoff aligned with native transient search behavior.
+          if _G.EnableSearchHighlight then
+            _G.EnableSearchHighlight()
+          else
+            vim.o.hlsearch = true
+          end
         end
+      end
 
+      -- Custom action to set search register when opening files from grep
+      local function set_search_register(prompt_bufnr)
+        set_search_from_prompt(prompt_bufnr)
         -- Proceed with normal file selection
         actions.select_default(prompt_bufnr)
       end
+
+      -- Send grep results to the quickfix list while preserving search
+      -- highlighting, so ]q / [q navigation keeps the matched word highlighted.
+      local function set_search_and_open_qflist(action)
+        return function(prompt_bufnr)
+          set_search_from_prompt(prompt_bufnr)
+          action(prompt_bufnr)
+          actions.open_qflist(prompt_bufnr)
+        end
+      end
+
+      local send_selected_to_qflist =
+        set_search_and_open_qflist(actions.send_selected_to_qflist)
+      local add_selected_to_qflist =
+        set_search_and_open_qflist(actions.add_selected_to_qflist)
+      local add_to_qflist = set_search_and_open_qflist(actions.add_to_qflist)
+
+      local base_ignore_patterns = {
+        '.git/.*',
+        '.undodir/.*',
+        'nvim%-archive/.*',
+        'sessions/.*',
+        'package%-lock%.json',
+        'Projects/dot-files-publish/dotfiles/.*',
+      }
+      -- Vault folders holding history, imports, or trash. Active searches skip
+      -- them; the archive and Employer searches opt back in.
+      local inactive_vault_dirs = { 'archive', 'sources', 'trash' }
+      local inactive_vault_patterns = vim.tbl_map(function(dir)
+        return '^' .. vim.pesc(dir) .. '/.*'
+      end, inactive_vault_dirs)
+      local default_ignore_patterns =
+        vim.list_extend(vim.deepcopy(base_ignore_patterns), inactive_vault_patterns)
 
       require('telescope').setup {
         -- You can put your default mappings / updates / etc. in here
         --  All the info you're looking for is in `:help telescope.setup()`
 
         defaults = {
-          file_ignore_patterns = {
-            '.git/.*',
-            '.undodir/.*',
-            'nvim%-archive/.*',
-            'sessions/.*',
-            'package%-lock%.json',
-            'Projects/dot-files-publish/dotfiles/.*',
-          },
+          file_ignore_patterns = default_ignore_patterns,
           path_display = { 'truncate' },
           dynamic_preview_title = true,
           layout_strategy = 'flex',
@@ -115,9 +151,12 @@ return {
           mappings = {
             i = {
               ['<C-s>'] = set_search_register,
-              ['<C-enter>'] = 'to_fuzzy_refine', -- TODO: fix
-              ['<C-q>'] = actions.send_selected_to_qflist + actions.open_qflist,
-              ['<C-a>'] = actions.send_to_qflist + actions.open_qflist,
+              -- Fuzzy-narrow the already-fetched results instead of re-running
+              -- the search. Requires tmux `extended-keys on` to arrive distinct
+              -- from a plain <CR>; see adrs/017 in ~/.config/docs/.
+              ['<C-enter>'] = 'to_fuzzy_refine',
+              ['<C-q>'] = send_selected_to_qflist,
+              ['<C-a>'] = add_selected_to_qflist,
             },
             n = {
               ['<C-s>'] = set_search_register,
@@ -134,6 +173,7 @@ return {
             mappings = {
               i = {
                 ['<C-k>'] = lga_actions.quote_prompt(),
+                ['<C-l>'] = lga_actions.quote_prompt { postfix = ' -F ' },
                 ['<C-g>'] = lga_actions.quote_prompt { postfix = ' --glob ' },
                 ['<C-t>'] = lga_actions.quote_prompt { postfix = ' -t' },
               },
@@ -163,6 +203,85 @@ return {
 
       -- See `:help telescope.builtin`
       local builtin = require 'telescope.builtin'
+      local paths = {
+        obsidian = vim.fn.expand '~/Documents/ObsidianVault',
+        employer_code = vim.fn.expand '~/code/employerCode',
+      }
+      paths.employer_notes = {
+        paths.obsidian .. '/archive/work/employer/notes',
+        paths.obsidian .. '/archive/work/employer/journal',
+      }
+      paths.archives = { paths.obsidian .. '/archive' }
+
+      local function existing_paths(candidates)
+        return vim.tbl_filter(function(path)
+          return vim.uv.fs_stat(path) ~= nil
+        end, candidates)
+      end
+
+      -- Directory of the current buffer's file, as a real path.
+      -- `expand('%:p:h')` alone is wrong for oil buffers (it yields an
+      -- `oil://...` string that fd/rg cannot cd into) and for no-name buffers.
+      local function buffer_dir()
+        local bufname = vim.api.nvim_buf_get_name(0)
+        if vim.startswith(bufname, 'oil://') then
+          return require('oil').get_current_dir()
+        end
+        if bufname == '' then
+          return vim.fn.getcwd() -- respects lcd -> tcd -> cd
+        end
+        return vim.fn.fnamemodify(bufname, ':p:h')
+      end
+
+      local active_vault_globs = { '*.md', '*.txt' }
+      for _, dir in ipairs(inactive_vault_dirs) do
+        table.insert(active_vault_globs, '!' .. dir .. '/**')
+      end
+
+      -- Folders that package managers and tools manage. Including ignored files
+      -- turns every ignore file off, so these are skipped by glob instead.
+      local tool_managed = {
+        '.git/',
+        '.DS_Store',
+        'node_modules/',
+        '.venv/',
+        '.uv-cache/',
+        '__pycache__/',
+        '.mypy_cache/',
+        '.pytest_cache/',
+        '.next/',
+        '.turbo/',
+      }
+
+      -- builtin.find_files, plus <M-i> to rerun the same search with gitignored
+      -- files included, and again to switch back.
+      local function find_files(opts)
+        local function open(include_ignored, default_text)
+          local picker_opts = vim.tbl_extend('force', opts, {
+            default_text = default_text,
+            attach_mappings = function(_, map)
+              map({ 'i', 'n' }, '<M-i>', function(prompt_bufnr)
+                local prompt = action_state.get_current_line()
+                actions.close(prompt_bufnr)
+                open(not include_ignored, prompt)
+              end)
+              return true
+            end,
+          })
+          if include_ignored then
+            -- find_files appends its flags to this table, so build it fresh.
+            picker_opts.find_command = { 'rg', '--files', '--color', 'never' }
+            for _, path in ipairs(tool_managed) do
+              vim.list_extend(picker_opts.find_command, { '--glob', '!' .. path })
+            end
+            picker_opts.no_ignore = true
+            picker_opts.prompt_title = (opts.prompt_title or 'Find Files')
+              .. ' (including ignored)'
+          end
+          builtin.find_files(picker_opts)
+        end
+        open(false)
+      end
 
       -- TODO: make all these default to search with very magic mode
 
@@ -219,7 +338,7 @@ return {
       -- ═══════════════════════════════════════════════════════════════════════════════
       -- TODO: <leader>fp    for find in projects/ directory
       vim.keymap.set('n', '<leader>fp', function()
-        builtin.find_files {
+        find_files {
           cwd = vim.fn.expand '~/Projects',
           prompt_title = '[F]ind files in [P]rojects',
           hidden = true,
@@ -227,21 +346,24 @@ return {
       end, { desc = '[F]ind files in [P]rojects' })
 
       vim.keymap.set('n', '<leader>ff', function()
-        builtin.find_files { hidden = true }
+        find_files { hidden = true, follow = true }
       end, { desc = '[F]ind [F]iles' })
 
+      -- DELETE: consider deleting
       -- Duplicate of <leader>ff for faster access (2 keystrokes instead of 3)
-      vim.keymap.set('n', '<leader>,', function()
-        builtin.find_files { hidden = true }
-      end, { desc = 'Find Files (fast: ,)' })
+      -- vim.keymap.set('n', '<leader>,', function()
+      --   builtin.find_files { hidden = true }
+      -- end, { desc = 'Find Files (fast: ,)' })
 
       vim.keymap.set('n', '<leader>fF', function()
-        require('telescope.builtin').find_files {
-          cwd = vim.fn.expand '%:p:h',
+        find_files {
+          cwd = buffer_dir(),
+          prompt_title = '[F]ind [F]iles in buffer dir',
           hidden = true,
         }
-      end, { desc = '[F]ind [F]iles in cwd' })
+      end, { desc = '[F]ind [F]iles in buffer dir' })
 
+      -- TODO: rename?
       vim.keymap.set(
         'n',
         '<leader>f.',
@@ -257,7 +379,7 @@ return {
 
       -- TODO: why doesnt this work when in the nvim dir?
       vim.keymap.set('n', '<leader>fn', function()
-        builtin.find_files {
+        find_files {
           cwd = vim.fn.stdpath 'config',
           prompt_title = '[F]ind [N]eovim files',
           hidden = true,
@@ -304,21 +426,38 @@ return {
         }
       end, { desc = '[F]ind [N]eovim, [T]mux, Ghostty & config files' })
 
+      vim.keymap.set('n', '<leader>fhe', function()
+        local hermes_dir = vim.fn.expand '~/Projects/hermes'
+        local hermes_docker_dir = vim.fn.expand '~/.hermes-docker'
+        builtin.find_files {
+          prompt_title = '[F]ind files in [H][E]rmes',
+          cwd = vim.fn.expand '~',
+          hidden = true,
+          find_command = {
+            'find',
+            hermes_dir,
+            hermes_docker_dir,
+            '-type',
+            'f',
+          },
+        }
+      end, { desc = '[F]ind files in [H]er[M]es' })
+
       -- TODO: make this so it searches for shortcuts, and when i hit enter on the found result,
       -- it goes to the shortcut where the shortcut is defined, not execute the shortcut.
       vim.keymap.set('n', '<leader>sk', builtin.keymaps, { desc = '[S]earch [K]eymaps' })
 
-      vim.keymap.set('n', '<leader>fg', function()
-        builtin.find_files {
-          cwd = vim.fn.expand '~/code/sennderCode',
-          prompt_title = '[F]ind [S]ennder files',
+      vim.keymap.set('n', '<leader>fcs', function()
+        find_files {
+          cwd = paths.employer_code,
+          prompt_title = 'Find Employer code files',
           hidden = true,
         }
-      end, { desc = '[F]ind [S]ennder files' })
+      end, { desc = '[F]ind [C]ode: [S]ennder' })
 
       -- Location-specific file searches
       vim.keymap.set('n', '<leader>fc', function()
-        builtin.find_files {
+        find_files {
           cwd = vim.fn.expand '~/.config',
           prompt_title = '[F]ind [F]iles in ~/.config',
           hidden = true,
@@ -326,37 +465,34 @@ return {
       end, { desc = '[F]ind [F]iles in ~/.config' })
 
       vim.keymap.set('n', '<leader>fh', function()
-        builtin.find_files {
+        find_files {
           cwd = vim.fn.expand '~/',
           hidden = true,
         }
       end, { desc = '[F]ind [F]iles in [H]ome' })
 
       vim.keymap.set('n', '<leader>fo', function()
+        local find_command = { 'rg', '--files' }
+        for _, glob in ipairs(active_vault_globs) do
+          vim.list_extend(find_command, { '--glob', glob })
+        end
         builtin.find_files {
-          cwd = vim.fn.expand '~/Documents/ObsidianVault',
-          prompt_title = '[F]ind [O]bsidian files',
-          find_command = {
-            'rg',
-            '--files',
-            '--glob',
-            '*.md',
-            '--glob',
-            '*.txt',
-          },
+          cwd = paths.obsidian,
+          prompt_title = 'Find Obsidian files',
+          find_command = find_command,
         }
       end, { desc = '[F]ind [O]bsidian files' })
 
       vim.keymap.set('n', '<leader>fai', function()
         local home = vim.fn.expand '~'
         builtin.find_files {
-          prompt_title = '[F]ind [A]I [I]nstruction files (CLAUDE.md, gemini.md, agent.md)',
+          prompt_title = '[F]ind [A]I [I]nstruction files (CLAUDE.md, GEMINI.md, AGENTS.md)',
           cwd = home,
           find_command = {
             'sh',
             '-c',
             string.format(
-              'find "%s/Projects" "%s/projects" "%s/code" -type f \\( -iname "CLAUDE.md" -o -iname "gemini.md" -o -iname "agent.md" \\) 2>/dev/null | sort',
+              'find "%s/Projects" "%s/projects" "%s/code" -type f \\( -iname "CLAUDE.md" -o -iname "GEMINI.md" -o -iname "AGENTS.md" \\) 2>/dev/null | sort',
               home,
               home,
               home
@@ -376,51 +512,151 @@ return {
         }
       end, { desc = '[S]earch by Grep in [P]rojects' })
 
-      -- QUESTION: When searching using this function, I have to escape brackets (\[) for some reason.
+      -- Prompt is a regex; append -F after the quoted pattern for literal text
       vim.keymap.set('n', '<leader>ss', function()
         live_grep_args {
           prompt_title = '[S]earch by Grep in project',
+          -- rg skips symlinks by default; follow them so symlink-only dirs are searchable.
+          vimgrep_arguments = vim.list_extend(
+            vim.deepcopy(require('telescope.config').values.vimgrep_arguments),
+            { '--follow' }
+          ),
         }
       end, { desc = '[S]earch by Grep in project' })
 
+      -- DELETE: consider deleting
       -- Duplicate of <leader>ss for faster access (2 keystrokes instead of 3)
-      vim.keymap.set('n', '<leader>.', function()
-        live_grep_args {
-          prompt_title = 'Search by Grep in project',
-        }
-      end, { desc = 'Search by Grep (fast: .)' })
+      -- vim.keymap.set('n', '<leader>.', function()
+      --   live_grep_args {
+      --     prompt_title = 'Search by Grep in project',
+      --   }
+      -- end, { desc = 'Search by Grep (fast: .)' })
 
       -- TODO: live grep in ~/.claude/plans  directory
 
       vim.keymap.set('n', '<leader>sS', function()
         builtin.live_grep {
-          cwd = vim.fn.expand '%:p:h',
-          prompt_title = '[S]earch by Grep in cwd',
+          cwd = buffer_dir(),
+          prompt_title = '[S]earch by Grep in buffer dir',
         }
-      end, { desc = '[S]earch by Grep in cwd' })
+      end, { desc = '[S]earch by Grep in buffer dir' })
 
-      -- TODO: make a search for all things sennder (obsidian and code) some conbination
-      -- of <leader>sg and <leader>so
-      -- TODO: make this work like the obsidian package:
-      -- { '<leader>so', '<cmd>Obsidian search<cr>', desc = '[O]bsidian [S]earch' },
-      --  $HOME/.config/nvim/lua/kickstart/plugins/obsidian.lua:88
-      vim.keymap.set('n', '<leader>sG', function()
+      vim.keymap.set('n', '<leader>sb', function()
         builtin.live_grep {
-          search_dirs = {
-            vim.fn.expand '~/code/sennderCode',
-            vim.fn.expand '~/Documents/ObsidianVault',
-            vim.fn.expand '~/Documents/ObsidianVault',
+          grep_open_files = true,
+          prompt_title = '[S]earch by Grep in open [B]uffers',
+        }
+      end, { desc = '[S]earch by Grep in open [B]uffers' })
+
+      vim.keymap.set('n', '<leader>soa', function()
+        builtin.live_grep {
+          cwd = paths.obsidian,
+          prompt_title = 'Search active Obsidian notes',
+          glob_pattern = active_vault_globs,
+        }
+      end, { desc = '[S]earch [O]bsidian: [A]ctive notes' })
+
+      vim.keymap.set('n', '<leader>soA', function()
+        builtin.live_grep {
+          search_dirs = existing_paths(paths.archives),
+          prompt_title = 'Search Obsidian archive',
+          glob_pattern = { '*.md', '*.txt' },
+          file_ignore_patterns = base_ignore_patterns,
+        }
+      end, { desc = '[S]earch [O]bsidian: [A]rchive' })
+
+      vim.keymap.set('n', '<leader>sos', function()
+        builtin.live_grep {
+          search_dirs = existing_paths(paths.employer_notes),
+          prompt_title = 'Search Employer Obsidian notes',
+          glob_pattern = { '*.md', '*.txt' },
+          file_ignore_patterns = base_ignore_patterns,
+        }
+      end, { desc = '[S]earch [O]bsidian: [S]ennder notes' })
+
+      -- PK-14 vault audits: work queues for standardizing notes.
+      -- Temporary: delete this block when PK-14 closes.
+      local function vault_rg(...)
+        local cmd = { 'rg', '--color', 'never', ... }
+        for _, glob in ipairs(active_vault_globs) do
+          vim.list_extend(cmd, { '--glob', glob })
+        end
+        return vim.list_extend(cmd, { '.' })
+      end
+
+      vim.keymap.set('n', '<leader>soc', function()
+        -- Provisional shapes from dayone ADR 0005 and Things ADR 0010;
+        -- replace when PK-14's vault-wide filename ADR lands.
+        local convention =
+          '(^|/)([0-9]{4}-[0-9]{2}-[0-9]{2}(-[0-9]{4}-[A-Za-z0-9]{8})?|[a-z0-9-]+--([0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]{4}-)?[A-Za-z0-9]{8,})[.]md$'
+        local audits = {
+          { 'No frontmatter', files = vault_rg('--files-without-match', '-U', '\\A---\\n') },
+          { 'No type:', files = vault_rg('--files-without-match', '^type:') },
+          { 'Unsorted (type: capture)', files = vault_rg('--files-with-matches', '^type: "?capture"?') },
+          { 'Wikilinks', files = vault_rg('--files-with-matches', '\\[\\[') },
+          {
+            'Filename off convention',
+            files = {
+              'sh',
+              '-c',
+              table.concat(vim.tbl_map(vim.fn.shellescape, vault_rg '--files'), ' ')
+                .. ' | grep -Ev '
+                .. vim.fn.shellescape(convention),
+            },
           },
-          prompt_title = '[S]earch by Grep Sennder Code and Obsidian Notes',
+          { 'Open checkboxes', grep = '^\\s*[-*+] \\[ \\]' },
         }
-      end, { desc = '[S]earch by Grep Sennder Code and Obsidian Notes' })
+        local pickers = require 'telescope.pickers'
+        local finders = require 'telescope.finders'
+        pickers.new({}, {
+          prompt_title = 'Vault audits',
+          finder = finders.new_table {
+            results = audits,
+            entry_maker = function(audit)
+              return { value = audit, display = audit[1], ordinal = audit[1] }
+            end,
+          },
+          sorter = require('telescope.config').values.generic_sorter {},
+          attach_mappings = function(prompt_bufnr)
+            actions.select_default:replace(function()
+              local audit = action_state.get_selected_entry().value
+              actions.close(prompt_bufnr)
+              if audit.grep then
+                builtin.live_grep {
+                  cwd = paths.obsidian,
+                  prompt_title = audit[1],
+                  default_text = audit.grep,
+                  glob_pattern = active_vault_globs,
+                }
+              else
+                builtin.find_files {
+                  cwd = paths.obsidian,
+                  prompt_title = audit[1],
+                  find_command = audit.files,
+                }
+              end
+            end)
+            return true
+          end,
+        }):find()
+      end, { desc = '[S]earch [O]bsidian: [C]hecks' })
 
-      vim.keymap.set('n', '<leader>sg', function()
+      vim.keymap.set('n', '<leader>scs', function()
         builtin.live_grep {
-          cwd = vim.fn.expand '~/code/sennderCode',
-          prompt_title = '[S]earch by Grep Sennder Code',
+          cwd = paths.employer_code,
+          prompt_title = 'Search Employer code',
         }
-      end, { desc = '[S]earch by Grep Sennder Code' })
+      end, { desc = '[S]earch [C]ode: [S]ennder' })
+
+      vim.keymap.set('n', '<leader>sas', function()
+        builtin.live_grep {
+          search_dirs = existing_paths(
+            vim.list_extend({ paths.employer_code }, vim.deepcopy(paths.employer_notes))
+          ),
+          prompt_title = 'Search all Employer sources',
+          file_ignore_patterns = base_ignore_patterns,
+        }
+      end, { desc = '[S]earch [A]ll sources: [S]ennder' })
 
       -- TODO: make this work when searching for "things with [ or ]"
       -- to find what i needed, i had to manually type \ to escape [ and ] symbols
@@ -475,6 +711,16 @@ return {
         }
       end, { desc = '[S]earch by Grep in [N]eovim, [T]mux, Ghostty & config files' })
 
+      vim.keymap.set('n', '<leader>she', function()
+        builtin.live_grep {
+          search_dirs = {
+            vim.fn.expand '~/Projects/hermes',
+            vim.fn.expand '~/.hermes-docker',
+          },
+          prompt_title = '[S]earch by Grep in [H][e]rmes',
+        }
+      end, { desc = '[S]earch by Grep in [H][E]rmes' })
+
       vim.keymap.set('n', '<leader>sai', function()
         builtin.live_grep {
           search_dirs = {
@@ -489,9 +735,9 @@ return {
               '--glob',
               'CLAUDE.md',
               '--glob',
-              'gemini.md',
+              'GEMINI.md',
               '--glob',
-              'agent.md',
+              'AGENTS.md',
             }
           end,
         }
@@ -584,6 +830,10 @@ return {
         builtin.grep_string { cwd = vim.fn.expand '~/' }
       end, { desc = '[F]ind current [W]ord in [H]ome ~/' })
 
+      vim.keymap.set('n', '<leader>swo', function()
+        builtin.grep_string { cwd = paths.obsidian, glob_pattern = active_vault_globs }
+      end, { desc = '[F]ind current [W]ord in [O]bsidian' })
+
       -- ═══════════════════════════════════════════════════════════════════════════════
       -- WORD UNDER CURSOR SEARCHES (WORD - bounded by whitespace)
       -- ═══════════════════════════════════════════════════════════════════════════════
@@ -603,6 +853,15 @@ return {
         local cwd = vim.fn.expand '~/'
         builtin.grep_string { search = word, cwd }
       end, { desc = 'Search grep current cWORD in [H]ome ~/' })
+
+      vim.keymap.set('n', '<leader>sWo', function()
+        local word = vim.fn.expand '<cWORD>'
+        builtin.grep_string {
+          search = word,
+          cwd = paths.obsidian,
+          glob_pattern = active_vault_globs,
+        }
+      end, { desc = 'Search grep current cWORD in [O]bsidian' })
 
       -- ═══════════════════════════════════════════════════════════════════════════════
       -- VISUAL SELECTION SEARCH
@@ -664,6 +923,24 @@ return {
           end
         end
       end, { desc = '[S]earch visual [W]ord selection in [H]ome ~/' })
+
+      vim.keymap.set('v', '<leader>swo', function()
+        local mode = vim.fn.mode()
+        if mode == 'v' or mode == 'V' or mode == '' then
+          vim.cmd 'normal! "sy'
+          local selected_text = vim.fn.getreg 's'
+          selected_text = vim.trim(selected_text:gsub('\n', ' '))
+          if selected_text ~= '' then
+            builtin.grep_string {
+              search = selected_text,
+              cwd = paths.obsidian,
+              glob_pattern = active_vault_globs,
+              use_regex = false,
+              prompt_title = '[S]earch visual [W]ord selection in [O]bsidian',
+            }
+          end
+        end
+      end, { desc = '[S]earch visual [W]ord selection in [O]bsidian' })
 
       -- ═══════════════════════════════════════════════════════════════════════════════
       -- BUFFER-SPECIFIC SEARCHES

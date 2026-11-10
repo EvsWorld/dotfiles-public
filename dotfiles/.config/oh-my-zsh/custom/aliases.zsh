@@ -6,8 +6,7 @@
 # be a cron job that runs every hour or so, or a function that checks memory
 # and tmux sessions and prompts to reset if thresholds are exceeded.
 
-# Check memory before running heavy tasks
-pre-heavy() {
+pre-heavy() {   # check memory state before running heavy tasks (ghostty, tmux, nvim)
     echo "=== Current Memory State ==="
     echo "Ghostty: $(ps -o rss= -p $(pgrep Ghostty) 2>/dev/null | awk '{sum+=$1} END {print sum/1024}')MB"
     echo "Gemini: $(ps -o rss= -p $(pgrep -i gemini) 2>/dev/null | awk '{sum+=$1} END {print sum/1024}')MB"
@@ -22,32 +21,29 @@ _tmux_startup_check() {
     (( ${_TMUX_CHECK_RAN:-0} )) && return
     _TMUX_CHECK_RAN=1
 
-    local session_count pane_count
-    session_count=$(tmux ls 2>/dev/null | wc -l | tr -d ' ')
-    pane_count=$(tmux list-panes -a 2>/dev/null | wc -l | tr -d ' ')
+    # Inside a pane you already know you are in tmux, and the shell that
+    # started the server has normally shown this warning already. Panes are the
+    # common case, so returning here keeps the cost off most shells entirely.
+    [[ -n "$TMUX" ]] && return
+
+    # One tmux call supplies all three numbers. This used to make four
+    # subprocesses: `tmux ls`, `list-panes -a`, `tmux ls` again, and
+    # `list-panes -a -F pane_dead`. The second `tmux ls` fed an `extras`
+    # counter whose only consumer was a commented-out echo, so it ran purely
+    # to produce a value that was always discarded.
+    local -a panes names dead
+    panes=( ${(f)"$(tmux list-panes -a -F '#{session_name} #{pane_dead}' 2>/dev/null)"} )
+    (( $#panes )) || return
+
+    names=( ${(u)${panes%% *}} )   # unique session names
+    dead=( ${(M)panes:#* 1} )      # panes whose pane_dead flag is 1
+
+    local session_count=$#names pane_count=$#panes dead_panes=$#dead
 
     [[ $session_count -le 10 && $pane_count -le 40 ]] && return
 
     [[ $session_count -gt 10 ]] && echo "🚨 $session_count tmux sessions active."
     [[ $pane_count -gt 40 ]] && echo "🚨 $pane_count tmux panes open — consider running tmux-prune."
-
-    local -a core_sessions=(ConfigGeneral Nvim tmux Claude)
-    local extras=0 name k is_core
-
-    while IFS= read -r line; do
-        name="${line%%:*}"
-        is_core=false
-        for k in "${core_sessions[@]}"; do
-            [[ "$name" == "$k" ]] && is_core=true && break
-        done
-        [[ "$is_core" == false ]] && (( extras++ ))
-    done < <(tmux ls 2>/dev/null)
-
-    # Count dead panes across all sessions in one query
-    local dead_panes
-    dead_panes=$(tmux list-panes -a -F '#{pane_dead}' 2>/dev/null | grep -c '^1') || dead_panes=0
-
-    # [[ $extras -gt 0 ]]     && echo "  ↳ $extras non-core sessions"
     [[ $dead_panes -gt 0 ]] && echo "  ↳ ⚠️  $dead_panes dead pane(s) — a process may have crashed"
 }
 _tmux_startup_check
@@ -55,7 +51,7 @@ _tmux_startup_check
 # Kill non-core tmux sessions interactively (fzf multi-select)
 # Core sessions (ConfigGeneral, Nvim, tmux, Claude) are pre-filtered out.
 # Usage: tmux-prune
-tmux-prune() {
+tmux-prune() {   # kill non-core tmux sessions interactively (fzf, cleanup)
   local -a core_sessions=(ConfigGeneral Nvim tmux Claude)
   local core_pattern
   core_pattern=$(IFS='|'; echo "${core_sessions[*]}")
@@ -74,7 +70,7 @@ tmux-prune() {
 
 # Kill all nvim processes whose parent shell is dead (PPID=1 = reparented to launchd)
 # These are the orphans that accumulate after closing panes without exiting nvim.
-nvim-prune() {
+nvim-prune() {   # kill orphaned nvim processes (cleanup, memory)
   local orphans
   orphans=$(ps -eo pid=,ppid=,comm= | awk '$3~/^n?vim/ && $2==1 {print $1}')
   if [[ -z "$orphans" ]]; then
@@ -91,8 +87,62 @@ nvim-prune() {
   [[ "$REPLY" =~ ^[Yy]$ ]] && echo "$orphans" | xargs kill && echo "Done."
 }
 
-# List tmux sessions, highlighting any outside the "core" set
-tmux-sessions() {
+# Close every tmux-agent-sidebar pane. Each open sidebar polls once a second by
+# forking tmux/git/lsof, even in hidden windows, and the forks queue on the
+# single-threaded tmux server until redraws lag. Agent panes are untouched;
+# reopen a sidebar with prefix f. Runbook: ~/.config/tmux/docs/TROUBLESHOOTING.md
+# Usage: sidebar-prune
+sidebar-prune() {   # close all agent-sidebar panes (fixes tmux redraw lag)
+  local -a sidebars
+  # pane_current_command truncates to 15 chars, so match the truncated name.
+  sidebars=( ${(f)"$(tmux list-panes -a -F '#{pane_current_command} #{pane_id} #{session_name}:#{window_index}' 2>/dev/null \
+    | awk '$1=="tmux-agent-side" {print $2, $3}')"} )
+  if (( ${#sidebars} == 0 )); then
+    echo "No agent sidebars open."
+    return 0
+  fi
+  local entry
+  for entry in $sidebars; do
+    tmux kill-pane -t "${entry%% *}" && echo "Closed sidebar in ${entry#* }"
+  done
+}
+
+# Kill git-over-SSH fetches stuck for more than 5 minutes. Lazygit fetches in
+# the background every 60s; if the Mac sleeps mid-connection, ssh can wait
+# forever and lazygit spins "Fetching" at 20fps into tmux, lagging redraws.
+# Killing the ssh makes the fetch fail cleanly (fetches are read-only).
+# Pushes (git-receive-pack) are spared; a clone over 5 minutes would be caught.
+# Runbook: ~/.config/tmux/docs/TROUBLESHOOTING.md
+# Usage: fetch-prune
+fetch-prune() {   # kill git fetches stuck >5m (fixes lazygit "Fetching" lag)
+  local stuck
+  stuck=$(ps -Ao pid=,etime=,command= | awk '
+    /[g]it-upload-pack/ {
+      e = $2; d = 0
+      if (e ~ /-/) { split(e, p, "-"); d = p[1]; e = p[2] }
+      n = split(e, t, ":")
+      s = d * 86400 + (n == 3 ? t[1] * 3600 + t[2] * 60 + t[3] : t[1] * 60 + t[2])
+      if (s > 300) print $1, $2, $NF
+    }')
+  if [[ -z "$stuck" ]]; then
+    echo "No stuck git fetches."
+    return 0
+  fi
+  local pid age repo
+  echo "$stuck" | while read -r pid age repo; do
+    kill "$pid" && echo "Killed fetch of $repo (stuck $age)"
+  done
+}
+
+# One command for the tmux redraw-lag symptom: runs the fix for every known
+# cause, so you don't have to work out which one it is first.
+# Usage: unlag
+unlag() {   # fix tmux redraw lag: close agent sidebars, kill stuck git fetches
+  sidebar-prune
+  fetch-prune
+}
+
+tmux-sessions() {   # list tmux sessions, highlighting non-core project sessions
     tmux ls 2>/dev/null || { echo "No tmux sessions running."; return 0; }
 
     local -a core_sessions=(ConfigGeneral Nvim tmux Claude)
@@ -113,35 +163,51 @@ tmux-sessions() {
 }
 
 
-# TODO: make this also find functions defined in .zshrc or aliases.zsh files
-# fzf alias search → jump to definition in nvim
-sl() {
-  local selection
-  selection=$(alias | fzf --height 50% --reverse --border --prompt="Alias: ")
-  [[ -z "$selection" ]] && return 0
-  # Extract alias name (everything before the first '=')
-  local name="${selection%%=*}"
-  # Files to search, in priority order (user overrides checked first)
-  local -a alias_files=(
+sl() {   # fzf shell definition/script search -> jump to source in nvim
+  local -a shell_files=(
     "$HOME/.config/oh-my-zsh/custom/aliases.zsh"
     "$HOME/.zshrc"
     "$HOME/.oh-my-zsh/plugins/git/git.plugin.zsh"
   )
-  # Search for alias or function definition, open in nvim at the line
-  local file line match
-  for file in "${alias_files[@]}"; do
-    # Match: alias name=..., alias name ..., unalias name, or name() {
-    match=$(grep -n -E "(alias ${name}=|alias ${name} |unalias ${name}|^[[:space:]]*${name}\(\))" "$file" 2>/dev/null | head -1)
-    if [[ -n "$match" ]]; then
-      line="${match%%:*}"
-      echo "Found: $file:$line"
-      nvim +"$line" "$file"
-      return 0
-    fi
-  done
-  # Fallback: copy alias to clipboard
-  echo "$selection" | pbcopy
-  echo "Definition not found in source files. Alias copied to clipboard."
+  local -a script_roots=(
+    "$HOME/scripts"
+    "$HOME"/Projects/*/bin(N/)
+  )
+
+  local selection file line
+  selection=$(
+    {
+      for file in "${shell_files[@]}"; do
+        [[ -r "$file" ]] || continue
+        perl -ne '
+          next if /^\s*#/;
+          chomp(my $source = $_);
+          if (/^\s*alias\s+([^=\s]+)=/) {
+            printf "alias    %-28s %s\t%s\t%d\n", $1, $source, $ARGV, $.;
+          } elsif (/^\s*function\s+([A-Za-z_][A-Za-z0-9_-]*)\s*(?:\(\))?\s*\{/) {
+            printf "function %-28s %s\t%s\t%d\n", $1, $source, $ARGV, $.;
+          } elsif (/^\s*([A-Za-z_][A-Za-z0-9_-]*)\s*\(\)\s*\{/) {
+            printf "function %-28s %s\t%s\t%d\n", $1, $source, $ARGV, $.;
+          }
+        ' "$file"
+      done
+
+      find "${script_roots[@]}" -type f -perm +111 \
+        -not -path '*/node_modules/*' -not -path '*/venv/*' -not -path '*/.venv/*' \
+        -not -path '*/archive/*' -not -path '*/.git/*' -print0 2>/dev/null |
+        while IFS= read -r -d '' file; do
+          local source_path="${file:A}"
+          printf "script   %-28s %s\t%s\t1\n" "${file:t}" "$file" "$source_path"
+        done
+    } | fzf --height 50% --reverse --border --prompt="Shell source: " --delimiter=$'\t' --with-nth=1
+  )
+  [[ -z "$selection" ]] && return 0
+
+  local -a fields=("${(@ps:\t:)selection}")
+  file="${fields[2]}"
+  line="${fields[3]}"
+  echo "Found: $file:$line"
+  nvim +"$line" "$file"
 }
 
 # fzf keybinding search → jump to definition in nvim
@@ -150,7 +216,7 @@ sl() {
 #   - Opens FZF to search all keybindings
 #   - Select a keybinding to jump to its definition in nvim
 #   - If definition not found, copies keybinding to clipboard
-skb() {
+skb() {   # fzf keybinding search across nvim, tmux, ghostty -> jump to definition
   # Parse Neovim keybindings from keyremaps.lua
   _skb_parse_nvim() {
     local file="$HOME/.config/nvim/lua/keyremaps.lua"
@@ -200,9 +266,9 @@ skb() {
     ' "$file"
   }
 
-  # Parse Tmux keybindings from both config files
+  # Parse Tmux keybindings (all bindings live in bindings.conf)
   _skb_parse_tmux() {
-    local files=("$HOME/.config/tmux/tmux.conf" "$HOME/.config/tmux/tmux.reset.conf")
+    local files=("$HOME/.config/tmux/bindings.conf")
 
     for file in "${files[@]}"; do
       [[ ! -f "$file" ]] && continue
@@ -302,10 +368,8 @@ skb() {
       fi
       ;;
     tmux)
-      # Check both tmux config files
-      if _skb_search_and_open "$HOME/.config/tmux/tmux.reset.conf" "$key"; then
-        found=true
-      elif _skb_search_and_open "$HOME/.config/tmux/tmux.conf" "$key"; then
+      # All tmux keybindings live in bindings.conf
+      if _skb_search_and_open "$HOME/.config/tmux/bindings.conf" "$key"; then
         found=true
       fi
       ;;
@@ -332,7 +396,7 @@ skb() {
 #   0/0 ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 #   Select make target
 
- m() {
+ m() {   # fzf search make targets in Makefile and run (build)
       local target
       target=$(grep -E '^[a-zA-Z_-]+:.*?## .*$' Makefile | \
         sort | \
@@ -355,7 +419,7 @@ alias pgadmin='docker run \
 
 
 # ***** Tmux + Vim session management ***************
-alias tmux='tmux -f $TMUX_CONF'
+alias tmux='tmux -f $TMUX_CONF'       # tmux with custom config file
 alias tmnew='tmux new-session -s'    # Create new tmux session: tnew project-name
 alias tmls='tmux list-sessions'       # List all tmux sessions
 alias tmatt='tmux attach-session -t'  # Attach to session: tatt session-name
@@ -363,19 +427,19 @@ alias tmkill='tmux kill-session -t'   # Kill session: tkill session-name
 # TODO: alias for detach/kill current session (ie Stop being in tmux and just convert the
 # current ghostty terminal window to be a non-tmux terminal instance)
 
-alias tms="~/.config/tmux/scripts/tmux-sessionizer"
+alias tms="~/.config/tmux/scripts/tmux-sessionizer"   # tmux sessionizer (fzf project session switcher)
 # alias tmw="~/.config/tmux/scripts/tmux-windowizer.sh"
 
 # Project session shortcuts
 # TODO:  tmux session for editing .config files
 # It should save the vim session info to a vim session file called "Config.vim"
-alias session-config='tmux new-session -s config -c ~/.config \; split-window -v -c ~/.config \; select-pane -t 0'
+alias session-config='tmux new-session -s config -c ~/.config \; split-window -v -c ~/.config \; select-pane -t 0'   # tmux session for editing ~/.config
 # TODO:  tmux session for writing scripts
 # It Should save the vim session info to a vim session file called "Scratch.vim"
-alias session-scratch='tmux new-session -s scratch -c ~/scratch'
+alias session-scratch='tmux new-session -s scratch -c ~/scratch'   # tmux session in ~/scratch
 # TODO:  tmux session for writing scripts.
 # It Should save the vim session info to a vim session file called "Scripts.vim"
-alias session-scripts='tmux new-session -s scripts -c ~/scripts'
+alias session-scripts='tmux new-session -s scripts -c ~/scripts'   # tmux session in ~/scripts
 # TODO:  tmux session for configuring tmux and nvim. It should:
 # - [ ] save the vim session info to a vim session file called "TmuxAndVim.vim"
 # - [ ]  open an existing session by the name "tmux-vim" if it exists
@@ -392,57 +456,136 @@ fi'
 # *********** End Tmux + Vim session management ***************
 
 # ************** Misc *****************************
-# create parent directories by default with mkdir
-alias mkdir='mkdir -pv'
-# make directory and then move into it
-mcd() {
+alias mkdir='mkdir -pv'   # create parent directories by default, verbose
+
+# Show the three most recently active visible applications, front-to-back.
+recent-apps() {
+    /usr/bin/lsappinfo visibleProcessList \
+        | sed -n 's/.*: "\([^"]*\)".*/\1/p' \
+        | tr '_' ' ' \
+        | head -n 3
+}
+
+mcd() {   # make directory and move into it (mkdir, cd, folder)
     if [ -z "$1" ]; then
         echo "Error: No directory name provided."
         return 1
     fi
-    mkdir -p "$1" && pushd "$1"
+    mkdir -p "$1" && builtin cd -- "$1"
 }
 # ************** End Misc *************************
 
 # ******* Programs ********
-alias vimp='NVIM_APPNAME="nvim-theprimeagen" nvim'
-alias vm=nvim
-alias vim=nvim
-alias cco='claude --permission-mode plan'
-alias ccr='claude --permission-mode plan --resume'
-alias gmm='gemini'
-alias oca='opencode'
-alias occ='opencode --pure -c'
-alias oc='opencode --pure'
-alias co='codex'
-alias gy='agy'
-alias he='hermes'
+alias vimp='NVIM_APPNAME="nvim-theprimeagen" nvim'   # nvim with theprimeagen config
+alias vm=nvim                          # nvim
+alias vim=nvim                         # nvim
 
-# ******* End programs ********
+alias cc='claude'
+alias ccr='claude --resume'   # claude plan mode, resume session
+alias cci='CLAUDE_CODE_DISABLE_AUTO_MEMORY=1 claude'  # claude session w/ memory off
+
+alias gmm='gemini'                     # gemini
+# alias oca='opencode'                   # opencode
+# alias occ='opencode --pure -c'         # opencode pure, continue last session
+# alias oc='opencode --pure'             # opencode pure
+alias co='codex'                       # codex
+alias cor='codex resume'               # codex resume session
+
+coi() {  # codex session w/ memory off
+    codex \
+      -c memories.generate_memories=false \
+      -c memories.use_memories=false \
+      "$@"
+}
+
+cojobsearch() {   # codex in personal-project project (hermes dirs included)
+  codex \
+    --cd $HOME/Projects/personal-project \
+    --add-dir $HOME/Projects/hermes \
+    --add-dir $HOME/.hermes-docker \
+    --add-dir $HOME/Projects/hermes-email-intake \
+    --add-dir $HOME/Projects/learning \
+    "$@"
+}
+
+cohermescox() {   # codex in hermes project (personal-project dirs included)
+  codex \
+    --cd $HOME/Projects/hermes \
+    --add-dir $HOME/.hermes-docker \
+    --add-dir $HOME/Projects/hermes-email-intake \
+    --add-dir $HOME/Projects/house-project \
+    "$@"
+}
+
+cohermes() {   # codex in hermes project (personal-project dirs included)
+  codex \
+    --cd $HOME/Projects/hermes \
+    --add-dir $HOME/.hermes-docker \
+    --add-dir $HOME/Projects/personal-project \
+    --add-dir $HOME/Projects/hermes-email-intake \
+    --add-dir $HOME/Projects/house-project \
+    --add-dir $HOME/Projects/learning \
+    "$@"
+}
+
+cosecondbrain()  { # codex with all second brain dirs
+  codex \
+    --cd $HOME/Projects/storage-strategy \
+    --add-dir $HOME/.hermes-docker \
+    --add-dir $HOME/Projects/hermes \
+    --add-dir $HOME/Projects/things-migration-data \
+    --add-dir $HOME/Projects/obsidian/ \
+    "$@"
+}
+
+alias gy='agy'   # antigravity
+
+# ********* Hermes **************
+
+# Hermes: the Dockerized container is the only install (the native ~/.hermes was deleted).
+# Bare `hermes` (and `he`/`jsh`) route into the `hermes` container. TTY-aware so interactive
+# sessions get -it while `-z`/piped use still works.
+hermes() {   # run hermes CLI in docker container (chat, ai)
+  local -a tty
+  [ -t 0 ] && tty=(-it)
+  $HOME/.orbstack/bin/docker exec $tty hermes hermes "$@"
+}
+
+alias hh='hermes'                      # hermes shortcut
+alias hhjob='hermes -p personal-project chat'  # hermes personal-project chat
+alias hhjobr='hermes sessions list -p personal-project'  # list hermes personal-project sessions
+alias hhjobz='hermes -p personal-project -z'    # hermes personal-project headless one-shot: hhjobz "triage <url>"
+alias hhlearn='hermes -p learning chat'    # hermes learning chat
+alias hhjlearnr='hermes sessions list -p learning'  # list hermes learning sessions
+alias hhcox='hermes -p cox-ave chat'     # hermes cox-ave chat
+alias hhcoxz='hermes -p cox-ave -z'     # hermes cox-ave headless one-shot
+
+# ********* Hermes End **************
+
+# ********** Programs End **************
 
 
 # ******* Utility ********
-alias cd='pushd'
-alias bk='popd'
-alias flip='pushd_builtin'
-alias c='clear'
-# TODO: make this output an error if theres a problem
+setopt AUTO_PUSHD PUSHD_IGNORE_DUPS PUSHD_SILENT
+alias jb='popd'                        # go back in directory stack (popd) (like my old bk, but feels more like zoxide j command)
+alias flip='pushd'                     # swap to previous directory (pushd)
+alias clc='clear'                        # clear screen
+# TODO: make this output an error if theres a problem.
+# TODO: how to speed up starting new terminal
 alias rp='source ~/.zshrc'   # Reloads profile
+alias rj='source ~/.zshrc'   # Reloads profile
 # ******* End Utility ********
 
 # ********* Searching/Finding/Grepping ************
-alias histgrep='history | grep'
+alias histgrep='history | grep'   # grep shell history
 
-# fzf search, copy path to clipboard, then open in nvim
-ffv() { local f="$(fzf)"; [[ -n "$f" ]] && realpath "$f" | pbcopy && nvim "$f" }
-
-# fzf but just copy the full path to the clipboard
-ff() { local f="$(fzf)"; [[ -n "$f" ]] && realpath "$f" | pbcopy }
+ffv() { local f="$(fzf)"; [[ -n "$f" ]] && realpath "$f" | pbcopy && nvim "$f" }   # fzf file, copy path, open in nvim
+fcp() { local f="$(fzf)"; [[ -n "$f" ]] && realpath "$f" | pbcopy }   # fzf file, copy full path to clipboard
 
 # Fuzzy-find and edit any script from ~/scripts or ~/Projects/*/bin
 # Usage: editscript         → opens fzf with all scripts
 #        editscript sys     → pre-fills "sys" in fzf search
-editscript() {
+editscript() {   # fzf find and edit script from ~/scripts or Projects/*/bin
   local match
   match=$(find ~/scripts ~/Projects/*/bin -type f -perm +111 \
     -not -path '*/node_modules/*' -not -path '*/venv/*' -not -path '*/.venv/*' \
@@ -452,56 +595,132 @@ editscript() {
 }
 
 # TODO hook up to control+r
-ffhist() {
+ffhist() {   # fzf search shell history and run selection
   eval $(fc -l 1 | fzf --tac | sed 's/ *[0-9]* *//')
 }
 
 # ********* Searching/Finding/Grepping ************
 
-# *************** Go To ***************************
-alias gtpr='cd ~/Projects/'
-alias gtcl='gtpr && cd ClaudeMeta'
-alias gtco='cd ~/code'
-alias gtex='gtco && cd experiments'
-alias gtzsh='cd ~/.zshrc'
-alias gtcf='cd ~/.config'
-alias gtscrii='cd ~/.config/scripts'
-alias gtscri='cd ~/scripts'
-alias gtscra='cd ~/scratch'
+# *************** Edit/Go To ***************************
 
-# alias gtvm='cd ~/.config/nvim'
-unalias gtv 2>/dev/null
-alias gtv='gtcf && cd nvim'
-alias gttm='gtcf && cd tmux'
-# ************* End Go To ***************************
+scratchn() { command mkdir -p "$HOME/Projects/scratch" && ${EDITOR:-nvim} "$HOME/Projects/scratch/$(date +%Y-%m-%d-%H%M)-scratch.txt"; } # Scratch with time: edit/go to/open a new timestamped scratch note.
+# Delegates to the TmuxLauncher app (~/Projects/nvim-in-ghostty), which
+# reuses the single `scratch` tmux window. scratchn stays local on purpose: its
+# file is timestamped but the launcher's window name is not.
+scratchp() { /usr/bin/open 'tmuxlauncher://launch/sp'; }   # edit/go to/open the reusable scratch note
+
+# Delegates to the TmuxLauncher app (~/Projects/nvim-in-ghostty), matching
+# the Alfred "on" keyword's Run Script. Naming the note here rather than inside
+# Neovim means it is created already titled, in its own tmux window.
+# Usage: vmon Grocery List   → uses the arguments as the title
+#        vmon                → prompts; empty input falls back to :Obsidian new
+
+vmon() {  # Open a new note in the personal Obsidian vault
+  local title encoded
+  if (( $# )); then
+    title="$*"
+  else
+    read -r "title?Note title: "
+  fi
+  encoded=$(/usr/bin/python3 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1]))' "$title")
+  /usr/bin/open "tmuxlauncher://launch/on?title=$encoded"
+}
+
+# Opens today's obsidian daily note directly in the current terminal's
+# Neovim session (unlike vmot, which routes through a dedicated tmux window).
+vmotn() {
+  /opt/homebrew/bin/nvim --cmd 'let g:auto_session_enabled = v:false' \
+    -c "silent lua require('lazy').load({ plugins = { 'obsidian.nvim' } })" \
+    -c 'silent Obsidian workspace personal' \
+    -c 'silent Obsidian today' \
+    -c 'silent lua vim.schedule(function() vim.cmd("normal! G") end)'
+}
+
+vmonn() {  # Opens a new obsidian note directly in the current terminal's Neovim session (unlike vmon, which routes through a dedicated tmux window).
+  local title createNote
+  if (( $# )); then
+    title="$*"
+  else
+    read -r "title?Note title: "
+  fi
+  if [[ -n "$title" ]]; then
+    createNote="silent Obsidian new $title"
+  else
+    createNote="silent Obsidian new"
+  fi
+  /opt/homebrew/bin/nvim --cmd 'let g:auto_session_enabled = v:false' \
+    -c "silent lua require('lazy').load({ plugins = { 'obsidian.nvim' } })" \
+    -c 'silent Obsidian workspace personal' \
+    -c "$createNote"
+}
+
+# Delegates to the TmuxLauncher app so the Alfred keyword and this
+# function share one definition of "open today's note" (~/Projects/nvim-in-ghostty).
+# Opens/reuses the dated obsidian-today tmux window rather than this pane.
+vmot() {  # Open the obsidian today note in the personal Obsidian vault
+  /usr/bin/open 'tmuxlauncher://launch/ot'
+}
+
+alias jv='cd "$HOME/Documents/ObsidianVault"'  # jump to the personal Obsidian vault
+
+# Delegates to the TmuxLauncher app so the Alfred keyword and these functions
+# share one definition of "open Telescope" (~/Projects/nvim-in-ghostty).
+# With no argument, reuses the dedicated telescope-find-files/telescope-live-grep
+# window. With an argument, always opens a new window prefilled with the query.
+ff() {  # Open Telescope find_files, rooted in the current directory
+  if [[ $# -eq 0 ]]; then
+    /usr/bin/open 'tmuxlauncher://launch/ff'
+  else
+    local encoded
+    encoded=$(/usr/bin/python3 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1]))' "$*")
+    /usr/bin/open "tmuxlauncher://launch/ff?query=$encoded"
+  fi
+}
+
+ss() {  # Open Telescope live_grep, rooted in the current directory
+  if [[ $# -eq 0 ]]; then
+    /usr/bin/open 'tmuxlauncher://launch/ss'
+  else
+    local encoded
+    encoded=$(/usr/bin/python3 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1]))' "$*")
+    /usr/bin/open "tmuxlauncher://launch/ss?query=$encoded"
+  fi
+}
+
 
 # ******  Edit files  *************************
-alias edzsh='nvim ~/.zshrc'
-alias edgitignore='nvim ~/.gitignore'
-alias edgitconfig='nvim ~/.gitconfig'
-alias edaliascustom='nvim ~/.config/oh-my-zsh/custom/aliases.zsh'
-alias edaliasdefault='nvim ~/.oh-my-zsh/plugins/git/git.plugin.zsh ~/.oh-my-zsh/plugins/git/README.md ~/.oh-my-zsh/custom/aliases.zsh'
-alias edinitvim='nvim ~/.config/nvim'
-alias edka='nvim ~/.config/karabiner.edn'
-alias edgitignorecfg='nvim ~/.cfg/todo'
-alias edgitconfigcfg='nvim ~/.cfg/config'
-alias edsuperwhisper='nvim ~/Documents/superwhisper/settings/vocabulary.json'
-# ******  End Edit files  *************************
-
+alias editzsh='nvim ~/.zshrc'          # edit/go to ~/.zshrc
+alias editgitignore='nvim ~/.gitignore'   # edit/go to ~/.gitignore
+alias editgitconfig='nvim ~/.gitconfig'   # edit/go to ~/.gitconfig
+alias editaliases='nvim ~/.config/oh-my-zsh/custom/aliases.zsh'   # edit/go to custom aliases (this file)
+alias editkarabiner='nvim ~/.config/karabiner.edn'                             # edit/go to karabiner.edn
+alias editaliasesdefault='nvim ~/.oh-my-zsh/plugins/git/git.plugin.zsh ~/.oh-my-zsh/plugins/git/README.md ~/.oh-my-zsh/custom/aliases.zsh'   # edit/go to oh-my-zsh git plugin aliases
+alias editvim='nvim ~/.config/nvim'   # edit/go to nvim config
+alias editka='nvim ~/.config/karabiner.edn'   # edit/go to karabiner.edn (keyboard remaps)
+alias editgitignorecfg='nvim ~/.cfg/todo'     # edit/go to cfg bare repo todo file
+alias editgitconfigcfg='nvim ~/.cfg/config'   # edit/go to cfg bare repo git config
+alias editsuperwhisper='nvim ~/Documents/superwhisper/settings/vocabulary.json'   # edit/go to superwhisper  speech to text vocabulary
+unalias edithandy 2>/dev/null
+edithandy() {
+  nvim '+/custom_words' '$HOME/Library/Application Support/com.pais.handy/settings_store.json'
+} # edit/go to Handy speech-to-text vocabulary
+alias editstt='edithandy'   # edit/go to speech to text settings/vocabulary
+# ******  End Edit/Go To files  *************************
 
 # *************** Viewing/status related ************************
-alias hist100='history | tail -n 100'
-alias hist40='history | tail -n 40'
+alias hist100='history | tail -n 100'  # last 100 history entries
+alias hist40='history | tail -n 40'    # last 40 history entries
+alias loghistory='grep "$(date +%Y-%m-%d)" ~/.claude/session_history.log'   # view today's response logs (Claude + Codex)
+alias logsessions='grep "$(date +%Y-%m-%d)" ~/.claude/session_end.log'   # view today's session end logs (Claude + Codex)
 
 # Process monitoring
-alias hbad="HTOPRC=~/.config/htop/htoprc-bad htop"
-alias list-bad-procs="~/.config/scripts/list-bad-procs.sh"
-alias hmem="HTOPRC=~/.config/htop/htoprc-memory htop"
-alias horph="HTOPRC=~/.config/htop/htoprc-orphans htop"
+alias hbad="HTOPRC=~/.config/htop/htoprc-bad htop"        # htop with bad-procs profile
+alias list-bad-procs="~/.config/scripts/list-bad-procs.sh"   # list problem processes
+alias hmem="HTOPRC=~/.config/htop/htoprc-memory htop"     # htop with memory profile
+alias horph="HTOPRC=~/.config/htop/htoprc-orphans htop"   # htop with orphans profile
 # alias showorph="~/scripts/run_htop_and_orphans.sh"
 
-# Toggle hidden files in Finder
-thidden() {
+thidden() {   # toggle hidden files in Finder (show, hide, defaults)
     # Get the current setting
     current_setting=$(defaults read com.apple.finder AppleShowAllFiles 2>/dev/null)
     if [ "$current_setting" = "1" ]; then
@@ -517,54 +736,80 @@ thidden() {
     killall Finder
 }
 
+ej() {   # eject the Extreme SSD and the Time Machine drive; refuses mid-backup
+    if tmutil status 2>/dev/null | grep -q 'Running = 1'; then
+        echo "Time Machine is backing up; not ejecting. Check: tmutil status"
+        return 1
+    fi
+    local vol
+    for vol in /Volumes/Extreme_SSD /Volumes/seagate-1-tb; do
+        if [[ -d $vol ]]; then
+            [[ $PWD == $vol || $PWD == $vol/* ]] && cd ~
+            diskutil eject "$vol"
+        else
+            echo "Not mounted: $vol"
+        fi
+    done
+}
+
 # Shows folders first and in color. required I run ""> brew install coreutils" first
 # alias ls='/usr/local/bin/gls --color -h --group-directories-first'
 ## Use a long listing format ##
-alias lp='ls -lAhog'
-alias ll='eza -a --long --no-permissions --no-user --time modified --icons --time-style=relative'
-alias ftree='tree -v -L 2 --charset utf-8 --filelimit 400'
-alias cp='cp -i'
-alias ln='ln -i'
-alias lsl='ls -1hFA | less'
-alias pwdc='pwd|pbcopy'
+alias lp='ls -lAhog'                   # long listing, compact
+alias ll='eza -a --long --no-permissions --no-user --time modified --icons --time-style=relative'   # eza long listing with icons
+alias ftree='tree -v -L 2 --charset utf-8 --filelimit 400'   # tree view, 2 levels
+alias cp='cp -i'                       # cp with overwrite confirm
+alias ln='ln -i'                       # ln with overwrite confirm
+alias lsl='ls -1hFA | less'            # list files piped to less
+alias pwdc='pwd|pbcopy'                # copy current path to clipboard
 # ***************End Viewing/status related ******************************
 
-alias pp='pnpm'
+alias pp='pnpm'                        # pnpm
 
 
 # ************************************************************
 # ************************* git ******************************
 # ************************************************************
+
+alias gsll='lazygit'      # git status lazygit
+alias csll="lazygit --git-dir=$HOME/.cfg --work-tree=$HOME"    # cfg git status lazygit bare repo dotfiles
+
+alias ldd='lazydocker'
+
 #  TODO: move all these to the git.plugin.zsh file?
 # and just delete the existing aliases instead of unaliasing them??
 
-alias gtag="git tag | sort -V"
+alias gtag="git tag | sort -V"         # git tags sorted by version
 
 unalias gcm 2>/dev/null
-alias gcom='git checkout $(git_main_branch)'
+# TODO: assign gcm to something?
+alias gcm='git commit -m'
+
+alias gcom='git checkout $(git_main_branch)'   # git checkout main branch
 
 unalias gcm! 2>/dev/null
-alias gcm!='git commit --amend -m'
+alias gcm!='git commit --amend -m'     # git amend last commit with new message
 
 unalias gcam! 2>/dev/null
-alias gcam!='git add -A && git commit --amend -m'
+alias gcam!='git add -A && git commit --amend -m'   # git add all + amend with new message
 
 unalias gcam 2>/dev/null
-alias gcam='git add -A && git commit -m'
+alias gcam='git add -A && git commit -m'   # git add all + commit with message
 
 # these cant be fundtions so will accept options at the end like -n
 unalias gcan! 2>/dev/null
-alias gcan!='git add -A && git commit --verbose --all --no-edit --amend'
+# TODO: QUESTION: remove the add all?
+alias gcan!='git add -A && git commit --verbose --all --no-edit --amend'   # git add all + amend, keep message
 
 # # git
 #
 unalias glog 2>/dev/null
 
 unalias gca 2>/dev/null
-alias gca='git add -A && git commit --verbose --all'
+alias gca='git add -A && git commit --verbose --all'   # git add all + commit verbose
 
 unalias gca! 2>/dev/null
-alias gca!='git add -A && git commit --verbose --all --amend'
+alias gca!='git add -A && git commit --verbose --all --amend'   # git add all + amend verbose
 
 # Unalias the commands if they exist to avoid conflicts
 unalias gs 2>/dev/null
@@ -574,26 +819,25 @@ unalias gloc 2>/dev/null
 unalias glo 2>/dev/null
 unalias gst 2>/dev/null
 
-# // IMP: git stash
-gstt() {
+gstt() {   # git stash changes
 echo "+ git stash (Stash changes)"
 echo ""
 git stash
 }
 
-gss() {
+gs() {   # git status short
     echo "+ git status --short (Show git status in short format)"
     echo ""
     git status --short
 }
 
-gs() {
+gss() {   # git status full
     echo "+ git status (Show git status)"
     echo ""
     git status
 }
 
-g:() {
+g:() {   # git checkout - (switch to previous branch)
     echo "+ git checkout - (Switch to the previous branch)"
     echo ""
     git checkout -
@@ -601,13 +845,13 @@ g:() {
 
 
 # ******* glog **********
-alias glog='git log --oneline --decorate --graph'
+alias glog='git log --oneline --decorate --graph'   # git log oneline graph
 
 #  TODO: doesnt work at all
-alias glog0='git log --oneline --decorate --graph --date=format:"%a %Y-%m-%d %H:%M:%S"  --pretty="%Cred%h%Creset -%C(auto)%d%Creset %s %Cgreen(%ar) %C(bold blue)<%an>%Creset"'
+alias glog0='git log --oneline --decorate --graph --date=format:"%a %Y-%m-%d %H:%M:%S"  --pretty="%Cred%h%Creset -%C(auto)%d%Creset %s %Cgreen(%ar) %C(bold blue)<%an>%Creset"'   # git log graph with dates (broken, see TODO)
 
 #  TODO: put dates on these. the formating and colors is good
-glog1() {
+glog1() {   # git log graph with relative date and author
     echo " "
     git log --oneline --decorate --graph --color=always --date=format:'%a %Y-%m-%d %H:%M:%S' --pretty="%Cred%h%Creset -%C(auto)%d%Creset %s %Cgreen(%ar) %C(blue)<%an>%Creset"
 }
@@ -622,7 +866,7 @@ glog1() {
 # the information is perfect almost. i like that in has the person who
 # commited it, how long ago relative, however i want it to also have the
 # absolute day, date, and time at the beginning in green like
-glol1() {
+glol1() {   # git log graph pretty (relative date, author)
     git log --graph --color=always --date=format:'%a %Y-%m-%d %H:%M:%S'  --pretty="%Cred%h%Creset -%C(auto)%d%Creset %s %Cgreen(%ar) %C(bold blue)<%an>%Creset"
 }
 
@@ -630,14 +874,14 @@ glol1() {
 # (with the person who commited it, how long ago relative,).
 # right now,  the commit message is in blue. i guess thats fine.
 #  the the dates display the right information.
-glol2() {
+glol2() {   # git log graph with absolute dates
     git log --graph --color=always --date=format:'%a %Y-%m-%d %H:%M:%S' --pretty=format:'%C(yellow)%h%C(reset) %C(green)(%ad)%C(reset) %C(blue)%s%C(reset)%C(auto)%d%C(reset)'
 }
 
 # ******* gloc ************
 #  the dates are good.
 # NOTE: it needs this to do the date formatting: --pretty=format:'%C(yellow)%h%C(reset) %C(green)(%ad)%C(reset) %C(bold blue)%s%C(reset)%C(auto)%d%C(reset)'
-gloc() {
+gloc() {   # git log graph, last 15, stays in scrollback
     echo "+ git log --oneline --decorate --graph (Stays in scroll back history)"
     echo ""
     git log --oneline --decorate --graph --color=always --date=format:'%a %Y-%m-%d %H:%M:%S' --pretty=format:'%C(yellow)%h%C(reset) %C(green)(%ad)%C(reset) %C(bold blue)%s%C(reset)%C(auto)%d%C(reset)' | head -n 15 | tee /dev/tty
@@ -645,7 +889,7 @@ gloc() {
 
 # ******* glo ************
 #  the dates are good.
-glo() {
+glo() {   # git log oneline, last 15, stays in scrollback
     echo "+ git log --oneline --decorate (Stays in scroll back history)"
     echo ""
     git log --oneline --decorate --color=always --date=format:'%a %Y-%m-%d %H:%M:%S' --pretty=format:'%C(yellow)%h%C(reset) %C(green)(%ad)%C(reset) %C(bold blue)%s%C(reset)%C(auto)%d%C(reset)'   | head -n 15 | tee /dev/tty
@@ -653,7 +897,7 @@ glo() {
 
 # ******* glf ************
 #  TODO: put header at the top of the output: "glft: git log --oneline --decorate --stat"
-glft() {
+gloltt() {   # git log with stat, last 35, stays in scrollback
     echo "+ git log --oneline --decorate --stat (Stays in scroll back history)"
     echo ""
     git log --oneline --decorate --stat --color=always --date=format:'%a %Y-%m-%d %H:%M:%S' --pretty=format:'%C(yellow)%h%C(reset) %C(green)(%ad)%C(reset) %C(bold blue)%s%C(reset)%C(auto)%d%C(reset)' | head -n 35 | tee /dev/tty
@@ -661,7 +905,7 @@ glft() {
 
 #  the dates are good. color good. the solid blue for the commit message
 #  works for this. bc the file data is black
-glf() {
+glolt() {   # git log with stat (files changed)
     echo "+ git log --oneline --decorate --stat"
     echo ""
     # git log --oneline --decorate --stat
@@ -670,13 +914,18 @@ glf() {
     git log --oneline --decorate --stat --color=always --date=format:'%a %Y-%m-%d %H:%M:%S' --pretty=format:'%C(yellow)%h%C(reset) %C(green)(%ad)%C(reset) %C(bold blue)%s%C(reset)%C(auto)%d%C(reset)'
 }
 
+# Safer staging options
+alias gau='git add -u'                     # Stage all modified tracked files
+alias gap='git add -p'                     # Interactive patch mode (stage parts of files)
+alias ga='git add'                     # cfg add
+
 # ********** review staged changes **********
 alias gdcs='git diff --cached --stat'      # Quick overview of staged files
 alias gdcss='git diff --cached'            # Full diff (gdca exists, but adding for consistency)
 
 # ********** safe commit pattern **********
 # Recommended workflow: gss → gau → gdcs → gcum "msg" → ggp
-alias gcum='git add -u && git commit -m'   # Stage tracked + commit (mirrors ccum)
+alias gcum='git add -u && git commit -m'   # Stage tracked + commit (mirrors cccum)
 
 # ********** unstaging/discarding **********
 alias grs='git restore --staged'           # Unstage files (keep changes)
@@ -688,7 +937,7 @@ alias grs!='git restore'                   # DANGER: Discard uncommitted changes
 # ************************************************************
 # ************** dot files bare-repo-- (~/.cfg) ****************
 # ************************************************************
-alias cfg="/usr/bin/git --git-dir=$HOME/.cfg/ --work-tree=$HOME"
+alias cfg="/usr/bin/git --git-dir=$HOME/.cfg/ --work-tree=$HOME"   # git for dotfiles bare repo
 
 # TODO: 2026_05_05 change all "cfg bare repo" aliases somehow more
 # distiguishable from git alias counterparts to make it harder to accidentally
@@ -700,20 +949,32 @@ alias cfg="/usr/bin/git --git-dir=$HOME/.cfg/ --work-tree=$HOME"
 # ccan! -> cccan! ?
 
 # ********** logging **********
-alias clg='cfg log --stat'
-alias clol='cfg log --graph --pretty="%Cred%h%Creset -%C(auto)%d%Creset %s %Cgreen(%ar) %C(bold blue)<%an>%Creset"'
-alias clols='clol --stat'
-alias clog='cfg log --oneline --decorate --graph'
+alias clg='cfg log --stat'             # cfg log with stat
+alias clol='cfg log --graph --pretty="%Cred%h%Creset -%C(auto)%d%Creset %s %Cgreen(%ar) %C(bold blue)<%an>%Creset"'   # cfg log graph pretty
+alias clols='clol --stat'              # cfg log graph pretty with stat
+
+#  the dates are good. color good. the solid blue for the commit message
+#  works for this. bc the file data is black
+alias clolt="cfg log --oneline --decorate --stat --color=always --date=format:'%a %Y-%m-%d %H:%M:%S' --pretty=format:'%C(yellow)%h%C(reset) %C(green)(%ad)%C(reset) %C(bold blue)%s%C(reset)%C(auto)%d%C(reset)'" # cfg log with stat (files changed)
+alias clog='cfg log --oneline --decorate --graph'   # cfg log oneline graph
 
 # Recommended workflow: cs → cau → cdcs → ccum "msg" → cfp
 # (check status → stage updates → review staged → commit → push)
 
 # ********** status **********
-alias cs='cfg status --short'
-alias css='cfg status'
-alias csd='cfg diff'
+# List NEW (untracked) files in the allowlisted docs dirs (see _cfg_docs_dirs).
+# The pathspec-restricted -uall pass overrides showUntrackedFiles=no for
+# those dirs only, so pending docs show as ?? file lines. Display-only, never stages.
+# :(top) anchors the pathspecs to the worktree root, so this runs from the
+# current directory and prints cwd-relative paths, same as `cfg status`.
+csdocs() {   # list new untracked docs files in cfg repo
+  local g=(/usr/bin/git --git-dir="$HOME/.cfg/" --work-tree="$HOME")
+  "${g[@]}" status --short -uall -- "${_cfg_docs_dirs[@]/#/:(top)}" | grep '^??' || true
+}
+alias cs='cfg status --short && csdocs && csskills'   # cfg status short + new docs + skills
+alias css='cfg status && csdocs && csskills'          # cfg status full + new docs + skills
 
-cstatus() {
+cstatus() {   # cfg status as table (staged/worktree columns)
   local line staged worktree path
 
   printf "%-7s %-8s %s\n" "STAGED" "WORKTREE" "PATH"
@@ -732,11 +993,170 @@ cstatus() {
 # Safer staging options
 alias cau='cfg add -u'                     # Stage all modified tracked files
 alias cap='cfg add -p'                     # Interactive patch mode (stage parts of files)
-alias ca='cfg add'
+alias ca='cfg add'                     # cfg add
+
+# ********** docs auto-tracking **********
+# The bare repo hides untracked files (status.showUntrackedFiles=no) and the
+# staging aliases use `add -u`, which skips NEW files — so new notes/ADRs under
+# config docs dirs can be missed. cadocs explicitly stages new files only in the
+# dirs listed below; broad workflows cwip and cccum call it, while ccm commits
+# exactly the existing index. Status helpers remain display-only.
+# ADD NEW DOCS DIRS HERE (paths relative to $HOME; nothing else is ever swept):
+_cfg_docs_dirs=(
+  .config/docs
+  .config/karabiner/docs
+  .config/nvim/docs
+  .config/oh-my-zsh/docs
+  .config/opencode/docs
+  .config/tmux/docs
+)
+
+cadocs() {   # stage new untracked docs files in cfg repo
+  local g=(/usr/bin/git --git-dir="$HOME/.cfg/" --work-tree="$HOME")
+  local -a files=()
+  while IFS= read -r -d '' file; do
+    files+=("$file")
+  done < <("${g[@]}" ls-files -z --others --exclude-standard -- "${_cfg_docs_dirs[@]/#/:(top)}")
+  (( ${#files[@]} )) && "${g[@]}" add -- "${files[@]}"
+  "${g[@]}" status --short -- "${_cfg_docs_dirs[@]/#/:(top)}"
+}
+
+# ********** skills and Claude commands auto-tracking **********
+# Codex puts system-managed skills under the hidden .system directory. Discover
+# every other directory containing SKILL.md so new personal or installed skills
+# are tracked automatically without maintaining a per-skill allowlist.
+_cfg_codex_skill_root=".codex/skills"
+
+# Emit (NUL-delimited) worktree-relative Codex skill directories. Hidden path
+# components are excluded so .system and any future runtime dotdirs stay local.
+_cfg_codex_skill_dirs() {
+  local root="$HOME/$_cfg_codex_skill_root"
+  local skill_md dir rel
+  for skill_md in "$root"/**/SKILL.md(N.); do
+    dir=${skill_md:h}
+    rel=${dir#$root/}
+    [[ $rel == .* || $rel == */.* ]] && continue
+    printf '%s\0' "${dir#$HOME/}"
+  done
+}
+
+# Claude commands and shared skill entry points are user-authored config and
+# should be tracked as a group.
+_cfg_claude_workflow_dirs=(
+  .claude/commands
+  .claude/skills
+)
+
+# Hermes skills are the tricky group: my custom skills live intermixed with ~72
+# bundled/generic skills (airtable, github-*, etc.) and runtime state (.hub,
+# .curator_*, .usage.json) under one root, and ~/.gitignore blanket-ignores the whole
+# .hermes-docker tree as a secrets safety net. A hand-listed dir allowlist silently
+# missed every new custom skill (that's how personal-project/-scout/linkedin-profile fell
+# through). Instead, track by RULE: a skill dir is BUNDLED iff its SKILL.md `name:`
+# appears in .bundled_manifest — the dir basename is NOT reliable (e.g.
+# mlops/models/audiocraft has `name: audiocraft-audio-generation`). Everything else
+# with a SKILL.md is custom. This catches new custom skills recursively across every
+# profile, never sweeps bundled ones, and scoping to skill dirs skips category
+# DESCRIPTION.md and .runtime dotpaths.
+_cfg_hermes_skill_dirs() {
+  local dir
+  for dir in "$HOME"/.hermes-docker/profiles/*/skills(N/); do
+    printf '%s\0' "${dir#$HOME/}"
+  done
+}
+
+# Emit (NUL-delimited) untracked files belonging to CUSTOM Hermes skills only.
+# Raw `ls-files --others` (no --exclude-standard): the tree is blanket-ignored,
+# so ignore-aware listing would return nothing; caskills force-adds instead.
+_cfg_hermes_custom_others() {
+  local g=(/usr/bin/git --git-dir="$HOME/.cfg/" --work-tree="$HOME")
+  local root_rel root manifest name skill_md dir f rel
+  while IFS= read -r -d '' root_rel; do
+    root="$HOME/$root_rel"
+    manifest="$root/.bundled_manifest"
+    local -A bundled=()
+    [[ -f $manifest ]] && while IFS=: read -r name _; do bundled[$name]=1; done < "$manifest"
+    local -a custom_dirs=()
+    for skill_md in "$root"/**/SKILL.md(N.); do
+      dir=${skill_md:h}
+      [[ ${dir#$root} == */.* ]] && continue                # skip .hub etc.
+      name=$(sed -n 's/^name:[[:space:]]*//p' "$skill_md" | head -n1)
+      [[ -n $name && -z ${bundled[$name]} ]] && custom_dirs+=("${dir#$HOME/}")
+    done
+    (( ${#custom_dirs[@]} )) || continue
+    # -C $HOME keeps emitted paths work-tree-relative without invoking shell cd aliases.
+    while IFS= read -r -d '' f; do
+      rel=${f#$root_rel/}
+      [[ $rel == .* || $rel == */.* ]] && continue          # skip dotpath state files
+      printf '%s\0' "$f"
+    done < <("${g[@]}" -C "$HOME" ls-files -z --others -- "${custom_dirs[@]/#/:(top)}")
+  done < <(_cfg_hermes_skill_dirs)
+}
+
+# Emit untracked, non-ignored files belonging to discovered Codex skills.
+_cfg_codex_others() {
+  local g=(/usr/bin/git --git-dir="$HOME/.cfg/" --work-tree="$HOME")
+  local -a dirs=()
+  local dir
+  while IFS= read -r -d '' dir; do dirs+=("$dir"); done < <(_cfg_codex_skill_dirs)
+  (( ${#dirs[@]} )) || return 0
+  "${g[@]}" -C "$HOME" ls-files -z --others --exclude-standard -- "${dirs[@]/#/:(top)}"
+}
+
+# Emit untracked, non-ignored files for user-authored Claude workflows.
+_cfg_claude_workflow_others() {
+  local g=(/usr/bin/git --git-dir="$HOME/.cfg/" --work-tree="$HOME")
+  # -C $HOME keeps emitted paths work-tree-relative, same base as the Hermes helper.
+  "${g[@]}" -C "$HOME" ls-files -z --others --exclude-standard -- "${_cfg_claude_workflow_dirs[@]/#/:(top)}"
+}
+
+# Global third-party skills vendored by the skills CLI (see ADR 013):
+# canonical content under .agents/skills plus the .skill-lock.json inventory.
+_cfg_agents_skill_root=".agents"
+
+# Emit untracked, non-ignored files for vendored global skills: the lockfile
+# and non-hidden files under .agents/skills (dotpaths stay local, like Codex).
+_cfg_agents_others() {
+  local g=(/usr/bin/git --git-dir="$HOME/.cfg/" --work-tree="$HOME")
+  "${g[@]}" -C "$HOME" ls-files -z --others --exclude-standard -- \
+    ":(top)$_cfg_agents_skill_root/.skill-lock.json" \
+    ":(top)$_cfg_agents_skill_root/skills" \
+  | while IFS= read -r -d '' f; do
+      local rel=${f#$_cfg_agents_skill_root/skills/}
+      [[ $rel != $f && ( $rel == .* || $rel == */.* ) ]] && continue
+      printf '%s\0' "$f"
+    done
+}
+
+csskills() {   # list untracked custom skills and claude workflow files
+  { _cfg_codex_others; _cfg_claude_workflow_others; _cfg_agents_others; _cfg_hermes_custom_others; } \
+  | while IFS= read -r -d '' f; do printf '?? %s\n' "$f"; done
+}
+
+caskills() {   # stage untracked custom skills and claude workflow files
+  local g=(/usr/bin/git --git-dir="$HOME/.cfg/" --work-tree="$HOME")
+  local -a files=()
+  local -a codex_dirs=()
+  local -a hermes_dirs=()
+  local dir
+  while IFS= read -r -d '' dir; do codex_dirs+=("$dir"); done < <(_cfg_codex_skill_dirs)
+  while IFS= read -r -d '' dir; do hermes_dirs+=("$dir"); done < <(_cfg_hermes_skill_dirs)
+  while IFS= read -r -d '' file; do
+    files+=("$file")
+  done < <({ _cfg_codex_others; _cfg_claude_workflow_others; _cfg_agents_others; _cfg_hermes_custom_others; })
+  # -f: Hermes files are blanket-ignored by design; harmless for the other groups.
+  # -C $HOME matches the work-tree-relative paths emitted by the helpers.
+  (( ${#files[@]} )) && "${g[@]}" -C "$HOME" add -f -- "${files[@]}"
+  "${g[@]}" status --short -- \
+    "${codex_dirs[@]/#/:(top)}" "${_cfg_claude_workflow_dirs[@]/#/:(top)}" \
+    ":(top)$_cfg_agents_skill_root" "${hermes_dirs[@]/#/:(top)}"
+}
 
 # Review staged changes (USE BEFORE COMMITTING!)
-alias cdcs='cfg diff --cached --stat'      # Quick overview of staged files
-alias cdcss='cfg diff --cached'            # Full diff of staged changes
+# TODO: change names.
+alias cfd='cfg diff'                       # cfg diff
+alias cfdc='cfg diff --cached'            # Full diff of staged changes
+alias cfdcs='cfg diff --cached --stat'      # Quick overview of staged files
 
 # ********** unstaging/discarding **********
 alias crs='cfg restore --staged'           # Unstage files (keep changes)
@@ -747,40 +1167,40 @@ alias creset='cfg reset HEAD~1'            # Undo last commit (keep changes)
 unalias ccam 2>/dev/null
 # alias ccam='cfg  commit -a -m'
 
-alias cwip='cfg add -u && cfg commit --no-verify --no-gpg-sign --message "--wip-- [skip ci]"'
+alias cwip='cadocs && caskills && cfg add -u && cfg commit --no-verify --no-gpg-sign --message "--wip-- [skip ci]"'   # cfg wip commit (stage docs, skills, tracked)
 
 
-# state all modified tracked files and commit them ( seems to work well)
-alias cccum='cfg add -u && cfg commit -m'
+# TODO: does this match logically with gcum ?
+# state all modified tracked files and commit them (seems to work well)
+# 3xc at the begining so not to confuse with gcum
+# TODO: remove caskills?
+alias cccum='cadocs && caskills && cfg add -u && cfg commit -m'   # cfg stage docs, skills, tracked + commit with message
 
-alias ccm='cfg commit -m'
+alias ccm='cfg commit -m'              # cfg commit with message (index as-is)
+alias ccmv='cfg commit -v'               # cfg verbose commit (diff in editor)
+alias ccm!='cfg commit -m --amend'    # cfg commit --ammend with message
 
-# Amend last commit with all tracked changes (modified/deleted files), keeping existing message
-alias ccan!='cfg commit -v -a --no-edit --amend'
+alias ccan!='cfg commit -v -a --no-edit --amend'   # cfg amend all tracked changes, keep message
 
 
 # TODO: ?? change to not -a  ??
-alias cca!='cfg add -A && cfg commit --verbose --all --amend'
-alias cca='cfg add -A && cfg commit --verbose --all'
-
-# Verbose commit (shows diff in commit message editor)
-alias cc='cfg commit -v'
-
-alias cfp='cfg push'
-alias cfpp='cfg push -f'
-
-alias crbc='cfg rebase --continue'
+alias cca!='cfg add -A && cfg commit --verbose --all --amend'   # cfg add all + amend verbose
+alias cca='cfg add -A && cfg commit --verbose --all'   # cfg add all + commit verbose
 
 
-#  stays in scroll back history
-clo() {
+alias cfp='cfg push'                   # cfg push
+alias cfpp='cfg push --force-with-lease'    # cfg push --force-with-lease
+
+alias crbc='cfg rebase --continue'     # cfg rebase continue
+
+
+clo() {   # cfg log oneline, last 15, stays in scrollback
     echo "+ cfg log --oneline --decorate (Show git log with one line and decoration)"
     echo ""
     cfg log --oneline  --color=always  --decorate | head -n 15 | tee /dev/tty
 }
 
-# Unified commit to both private bare repo and public dotfiles repo
-ccump() {
+ccump() {   # commit to private cfg repo and sync public dotfiles repo
     if [ -z "$1" ]; then
         echo "Error: Commit message required"
         echo "Usage: ccump \"your commit message\""
@@ -832,48 +1252,14 @@ ccump() {
     fi
 }
 
-#  the dates are good. color good. the solid blue for the commit message
-#  works for this. bc the file data is black
-clf() {
-    echo "+ git log --oneline --decorate --stat ( git log with one line, decoration, and stat)"
-    echo ""
-    cfg log --oneline --decorate --stat --color=always --date=format:'%a %Y-%m-%d %H:%M:%S' --pretty=format:'%C(yellow)%h%C(reset) %C(green)(%ad)%C(reset) %C(bold blue)%s%C(reset)%C(auto)%d%C(reset)'
-}
 
 alias cpub='cfg publish-dotfiles'          # Sync & commit public dotfiles
-
-# ******* AI-assisted commits *******
-aiccum() {
-  opencode run "ONLY output one line: the successful commit SHA and message, or an error if something failed. DO NOT provide any explanation, commentary, or step-by-step output—just the result.
-You are working with a bare git dotfiles repo. The 'cfg' alias is NOT available—ALWAYS use the full command: /usr/bin/git --git-dir=$HOME/.cfg/ --work-tree=$HOME
-Run '/usr/bin/git --git-dir=$HOME/.cfg/ --work-tree=$HOME diff' and '... status' to see what changed since the last commit. Generate an appropriate conventional commit message based on the diff, stage all modified and deleted files using '... add -u', then commit using '... commit'. NEVER touch secrets files. Only use Bash commands."
-}
-
-aiccump() {
-  opencode run "ONLY output one line: the successful commit SHA and message, or an error if something failed. DO NOT provide any explanation, commentary, or step-by-step output—just the result.
-You are working with a bare git dotfiles repo. The 'cfg' alias is NOT available—ALWAYS use the full command: /usr/bin/git --git-dir=$HOME/.cfg/ --work-tree=$HOME
-Run '/usr/bin/git --git-dir=$HOME/.cfg/ --work-tree=$HOME diff' and '... status' to see what changed since the last commit. Generate an appropriate conventional commit message based on the diff, stage all modified and deleted files using '... add -u', commit using '... commit', then push using '... push'. NEVER touch secrets files. Only use Bash commands."
-}
-
-aigcum() {
-  opencode run "ONLY output one line: the successful commit SHA and message, or an error if something failed. DO NOT provide any explanation, commentary, or step-by-step output—just the result.
-You are working with a standard git repo. The 'cfg' alias is NOT available here. Use full git commands: 'git diff', 'git status', 'git add -u', 'git commit', 'git push'. Generate an appropriate conventional commit message based on the diff, stage all modified and deleted files, commit, then push to main. NEVER touch secrets files. Only use Bash commands."
-}
-
-aigcump() {
-  opencode run "ONLY output one line: the successful commit SHA and message, or an error if something failed. DO NOT provide any explanation, commentary, or step-by-step output—just the result.
-You are working with a standard git repo. The 'cfg' alias is NOT available here. Use full git commands: 'git diff', 'git status', 'git add -u', 'git commit'. Generate an appropriate conventional commit message based on the diff, stage all modified and deleted files and make commit to current branch. NEVER touch secrets files. Only use Bash commands."
-}
-
-# ******* End AI-assisted commits *******
-
-
 
 # ************ Projects ****************************
 
 # Populate Memento .env with Google Photos secrets from 1Password
 # Run once after cloning, or after rotating credentials
-memento-env() {
+memento-env() {   # populate Memento .env from 1Password secrets
     local env_file="$HOME/Projects/memento/.env"
     cp "$HOME/Projects/memento/.env.example" "$env_file"
     sed -i "" "s|GOOGLE_PHOTOS_CLIENT_ID=.*|GOOGLE_PHOTOS_CLIENT_ID=$(op read 'op://Private/Memento - Google Photos OAuth/client_id')|" "$env_file"
@@ -881,33 +1267,8 @@ memento-env() {
     echo "✓ .env populated from 1Password"
 }
 
-# ************ Experiments ****************************
-# activating venv. (not used)
-# alias dl-env='source ~/Venv/dl-env/bin/activate'
-# alias ibrew="arch -x86_64 /usr/local/bin/brew"
-
-# TODO: Make this function available for interactive use
-# # Custom function to handle the -p flag for copying output to clipboard
-# run_with_pbcopy() {
-#     # Check if the last argument is -p
-#     if [[ "${@[-1]}" == "-p" ]]; then
-#         # Remove the -p from the arguments
-#         local cmd=("${(@)@[:-1]}")
-#         # Execute the command and pipe the output to pbcopy
-#         "${cmd[@]}" | pbcopy
-#     else
-#         # Execute the command normally
-#         "$@"
-#     fi
-# }
-# alias run="run_with_pbcopy"
-
-
-
-
-# Generate a terminal command with Codex without running it.
-# Usage: askcmd find an app called alttab
-askcmd() {
+# Usage: askcmd find all markdown files in current directory
+_askcmd() {   # generate one terminal command with Claude, copy to clipboard
   if [[ $# -eq 0 ]]; then
     echo "usage: askcmd <describe the command you want>" >&2
     return 2
@@ -916,14 +1277,12 @@ askcmd() {
   local tmp
   tmp="$(mktemp -t askcmd.XXXXXX)" || return
 
-  codex exec \
-    --ephemeral \
-    --skip-git-repo-check \
-    --sandbox read-only \
-    --color never \
-    -C "$PWD" \
-    -o "$tmp" \
-    "Generate exactly one zsh terminal command for macOS. Do not run it. Return only plain text with this format: command line, then a second line starting with '-- ' containing a short explanation of that command. Do not use numbering, bullets, markdown, code fences, or extra text. Task: $*" >/dev/null 2>/dev/null
+  claude -p \
+    --model haiku \
+    --no-session-persistence \
+    --tools "Read,Glob,Grep" \
+    --output-format text \
+    "Generate exactly one zsh terminal command for macOS. Do not run it. Return only plain text as exactly two consecutive nonblank lines: first a line starting with '## ' containing a short explanation of the command, immediately followed by the command line. Do not leave a blank line between those lines, or before or after them. Do not use numbering, bullets, markdown, code fences, or extra text. Task: $*" >"$tmp" 2>/dev/null
 
   local exit_status=$?
   if [[ $exit_status -eq 0 ]]; then
@@ -931,7 +1290,7 @@ askcmd() {
     echo
 
     local command
-    command="$(sed -n '/[^[:space:]]/ { p; q; }' "$tmp")"
+    command="$(sed -n '/^## /d; /^[^[:space:]]/ { p; q; }' "$tmp")"
     if [[ -n "$command" ]]; then
       if ! print -rn -- "$command" | pbcopy; then
         echo "Failed to copy to clipboard." >&2
@@ -944,11 +1303,10 @@ askcmd() {
   rm -f "$tmp"
   return $exit_status
 }
+alias askcmd='noglob _askcmd'
 
-# Generate 4 possible terminal commands with Codex without 
-# running it, and copy the top one to the clipboard
-# Usage: askcmds find an app called alttab
-askcmds() {
+# Usage: askcmd find all markdown files in current directory
+_askcmds() {   # generate 4 terminal commands with Claude, copy top one
   if [[ $# -eq 0 ]]; then
     echo "usage: askcmds <describe the command you want>" >&2
     return 2
@@ -957,14 +1315,12 @@ askcmds() {
   local tmp
   tmp="$(mktemp -t askcmds.XXXXXX)" || return
 
-  codex exec \
-    --ephemeral \
-    --skip-git-repo-check \
-    --sandbox read-only \
-    --color never \
-    -C "$PWD" \
-    -o "$tmp" \
-    "Generate exactly 4 possible zsh terminal commands for macOS. Do not run them. Return only plain text with this repeated format: command line, then a second line starting with '-- ' containing a short explanation of that command. Do not use numbering, bullets, markdown, code fences, or extra text. Task: $*" >/dev/null 2>/dev/null
+  claude -p \
+    --model sonnet \
+    --no-session-persistence \
+    --tools "Read,Glob,Grep" \
+    --output-format text \
+    "Generate exactly 4 possible zsh terminal commands for macOS. Do not run them. Return only plain text as 4 repeated entries, each with exactly two consecutive nonblank lines: first a line starting with '## ' containing a short explanation of the command, immediately followed by the command line. Separate entries with exactly one blank line. Do not leave a blank line between an explanation and its command, or before the first entry or after the last one. Do not use numbering, bullets, markdown, code fences, or extra text. Task: $*" >"$tmp" 2>/dev/null
 
   local exit_status=$?
   if [[ $exit_status -eq 0 ]]; then
@@ -972,7 +1328,7 @@ askcmds() {
     echo
 
     local top_command
-    top_command="$(sed -n '/[^[:space:]]/ { p; q; }' "$tmp")"
+    top_command="$(sed -n '/^## /d; /^[^[:space:]]/ { p; q; }' "$tmp")"
     if [[ -n "$top_command" ]]; then
       if ! print -rn -- "$top_command" | pbcopy; then
         echo "Failed to copy to clipboard." >&2
@@ -986,5 +1342,24 @@ askcmds() {
   rm -f "$tmp"
   return $exit_status
 }
+alias askcmds='noglob _askcmds'
 
+# Usage: ask what does the -S flag do in ls
+_ask() {   # quick one-shot answer from Claude, no interactive session
+  if [[ $# -eq 0 ]]; then
+    echo "usage: ask <question>" >&2
+    return 2
+  fi
 
+  claude -p \
+    --model sonnet \
+    --no-session-persistence \
+    --tools "Read,Glob,Grep" \
+    --output-format text \
+    "Answer the question below as briefly as possible: a direct answer in one to a few sentences, plain text, no preamble or follow-up offers. If a terminal command is the answer, include it on its own line. You may read files in the current directory if the question is about them. Question: $*"
+}
+alias ask='noglob _ask'
+
+# ************ Experiments ****************************
+# activating venv. (not used)
+# alias dl-env='source ~/Venv/dl-env/bin/activate'

@@ -1,0 +1,23 @@
+gui:
+  theme:
+    selectedLineBgColor:
+      # - "#45475a"
+      # - "#3b4f7a"
+      - bold
+      - reverse
+
+os:
+  shellFunctionsFile: $HOME/.config/lazygit/shell_functions.zsh
+
+keybinding:
+  universal:
+    # Match the ;/: inversion used in Neovim (keyremaps.lua:397) and tmux
+    # (bindings.conf:34): ';' opens the shell command prompt.
+    executeShellCommand: ';'
+
+customCommands:
+  - key: 'X'
+    context: 'files'
+    description: 'Show untracked docs/skills (csdocs + csskills)'
+    command: 'csdocs; csskills'
+    output: 'log'

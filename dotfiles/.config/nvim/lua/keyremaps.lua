@@ -3,80 +3,50 @@
 
 -- vim.keymap.set('x', '<leader>ktl', '<cmd>lua print(vim.fn.wordcount().visual_words)<CR>')
 
-function ToggleAutoWrap()
-  -- Only allow wrapping for markdown and text files
-  local allowed_filetypes = { 'markdown', 'text' }
-  local current_ft = vim.bo.filetype
-  local is_allowed = false
-  -- Check if current filetype is allowed to wrap
-  for _, ft in ipairs(allowed_filetypes) do
-    if current_ft == ft then
-      is_allowed = true
-      break
-    end
-  end
-  if not is_allowed then
-    print(
-      'Soft wrap is only allowed for markdown and text files (current: '
-        .. current_ft
-        .. ')'
-    )
-    return
-  end
-  -- Toggle wrap for allowed filetypes
-  if vim.wo.wrap then
-    vim.wo.wrap = false
-    vim.wo.linebreak = false
-    vim.wo.breakindent = false
-    print 'Soft wrap OFF'
+-- Wrap toggles removed 2026-09-04. Markdown always soft wraps via the
+-- WrapControl augroup in lua/options.lua, and long lines on a wide pane are
+-- now handled by centering (<leader>\tt, kickstart/plugins/no-neck-pain.lua)
+-- rather than by reshaping the file.
+-- See docs/2026-09-04-centered-markdown-reading-measure.md
+
+local function enable_search_highlight()
+  vim.o.hlsearch = true
+end
+
+local function clear_search_highlight()
+  -- `:nohlsearch` clears the active overlay, and resetting the option keeps the
+  -- config in its default "off until a search starts" state.
+  vim.cmd 'nohlsearch'
+  vim.o.hlsearch = false
+end
+
+-- Expose the helper so Telescope and any future search UIs can reuse the same
+-- transient highlight behavior instead of each plugin managing `hlsearch`.
+_G.EnableSearchHighlight = enable_search_highlight
+
+local transient_search_group =
+  vim.api.nvim_create_augroup('TransientSearchHighlight', { clear = true })
+vim.api.nvim_create_autocmd('CmdlineEnter', {
+  group = transient_search_group,
+  pattern = { '/', '?' },
+  -- Native `/` and `?` keep their default UI; this only flips highlight on when
+  -- you enter the search command-line so matches stay visible for n/N cycling.
+  callback = enable_search_highlight,
+})
+
+local function goToLineBeginning()
+  if vim.v.count > 0 then
+    vim.cmd('normal! ' .. vim.v.count .. 'G')
   else
-    vim.wo.wrap = true
-    vim.wo.linebreak = true
-    vim.wo.breakindent = true
-    vim.opt.textwidth = 0
-    vim.opt.wrapmargin = 0
-    print 'Soft wrap ON'
+    vim.cmd 'normal! 0'
   end
 end
 
-vim.api.nvim_create_user_command(
-  'ToggleAutoWrap',
-  ToggleAutoWrap,
-  { desc = 'Toggle soft wrapping' }
-)
-vim.keymap.set('n', '<leader>ktw', ToggleAutoWrap, { desc = 'Toggle soft wrapping' })
+-- Optional future variant: clear on InsertEnter if you want search state to end
+-- as soon as you start editing instead of waiting for a manual dismiss key.
+vim.keymap.set('n', '<BS>', clear_search_highlight, { desc = 'Clear search highlight' })
 
--- Toggle hard wrapping by setting/unsetting textwidth
-function ToggleTextwidth()
-  if vim.opt.textwidth:get() == 0 then
-    local width = vim.api.nvim_win_get_width(0) - 2
-    vim.opt.textwidth = width
-    print('Hard wrap ON (' .. width .. ' cols)')
-  else
-    vim.opt.textwidth = 0
-    print 'Hard wrap OFF'
-  end
-end
-vim.keymap.set(
-  'n',
-  '<leader>ktt',
-  ToggleTextwidth,
-  { desc = 'Toggle textwidth wrapping' }
-)
-vim.api.nvim_create_user_command(
-  'ToggleTextwidth',
-  ToggleTextwidth,
-  { desc = 'Toggle textwidth wrapping' }
-)
-
---  DELETE: ??
---  See `:help hlsearch`
--- vim.keymap.set(
---   'n',
---   '<Return>',
---   '<cmd>nohlsearch<CR>',
---   { desc = 'Clear search highlight' }
--- )
+vim.keymap.set('n', '<leader>n', '<cmd>update<cr>', { desc = 'Write buffer' })
 
 --  See `:help wincmd` for a list of all window commands
 
@@ -99,59 +69,80 @@ vim.api.nvim_create_autocmd('TextYankPost', {
 })
 
 -- Movement mappings
-vim.keymap.set({ 'n', 'v' }, 'K', 'gE', { desc = '(gE) Go to the end of the last Word' })
 vim.keymap.set('n', 'n', 'nzv', { desc = 'Go to next match' })
 vim.keymap.set('n', 'N', 'Nzv', { desc = 'Go to previous match' })
-vim.keymap.set('n', 'J', 'mzJ`z', { desc = 'Join line below to current line' })
+
+-- Navigate by display lines so movement behaves consistently when text wraps.
+vim.keymap.set({ 'n', 'x' }, 'j', 'gj', { desc = 'Move down by display line' })
+vim.keymap.set({ 'n', 'x' }, 'k', 'gk', { desc = 'Move up by display line' })
+vim.keymap.set({ 'n', 'x' }, 'J', '6gj', { desc = 'Move down 6 display lines' })
+vim.keymap.set({ 'n', 'x' }, 'K', '6gk', { desc = 'Move up 6 display lines' })
+vim.keymap.set('n', 'gj', 'mzJ`z', { desc = 'Join line below to current line' })
 
 -- Go to line number (e.g., 42- goes to line 42), or beginning of line
-vim.keymap.set('n', '-', function()
-  if vim.v.count > 0 then
-    vim.cmd('normal! ' .. vim.v.count .. 'G')
-  else
-    vim.cmd 'normal! 0'
-  end
-end, { desc = 'Go to line (with count) or beginning of current line' })
-vim.keymap.set('n', '_', function()
-  if vim.v.count > 0 then
-    vim.cmd('normal! ' .. vim.v.count .. 'G')
-  else
-    vim.cmd 'normal! 0'
-  end
-end, { desc = 'Go to line (with count) or beginning of current line' })
+vim.keymap.set(
+  'n',
+  '-',
+  goToLineBeginning,
+  { desc = 'Go to line (with count) or beginning of current line' }
+)
+vim.keymap.set(
+  'n',
+  '_',
+  goToLineBeginning,
+  { desc = 'Go to line (with count) or beginning of current line' }
+)
 
 -- Good bc doesnt clutter up the jumplist
 -- Scroll half as much as default (1/4 page instead of 1/2)
 vim.keymap.set('n', '<C-d>', function()
-  local scroll_amount = math.floor(vim.fn.winheight(0) / 4)
-  vim.cmd('normal! ' .. scroll_amount .. 'jzz')
-end, { desc = 'Scroll down 1/4 page' })
+  local scroll_amount = math.floor(vim.fn.winheight(0) / 5)
+  vim.cmd('normal! ' .. scroll_amount .. 'gjzz')
+end, { desc = 'Move down 1/5 window by display lines and center cursor' })
 
 vim.keymap.set('n', '<C-u>', function()
-  local scroll_amount = math.floor(vim.fn.winheight(0) / 4)
-  vim.cmd('normal! ' .. scroll_amount .. 'kzz')
-end, { desc = 'Scroll up 1/4 page' })
+  local scroll_amount = math.floor(vim.fn.winheight(0) / 5)
+  vim.cmd('normal! ' .. scroll_amount .. 'gkzz')
+end, { desc = 'Move up 1/5 window by display lines and center cursor' })
 
 -- Line movement remaps
-vim.keymap.set({ 'o', 'v', 'n' }, 'L', 'g_', { desc = 'Move to end of line' })
-vim.keymap.set({ 'o', 'v', 'n' }, 'H', '^', { desc = 'Move to beginning of line' })
-vim.keymap.set({ 'o', 'v', 'n' }, 'zl', 'L', { desc = 'Move to bottom of page' })
-vim.keymap.set({ 'o', 'v', 'n' }, 'zh', 'H', { desc = 'Move to top of page' })
-vim.keymap.set({ 'o', 'v', 'n' }, 'zm', 'M', { desc = 'Move to middle of page' })
+vim.keymap.set(
+  { 'o', 'v', 'n' },
+  'gH',
+  'g^',
+  { desc = 'Move to first nonblank of display line' }
+)
+vim.keymap.set(
+  { 'o', 'v', 'n' },
+  'gL',
+  'g<End>',
+  { desc = 'Move to last nonblank of display line' }
+)
 
-vim.keymap.set({ 'o', 'v', 'n' }, 'gL', 'g$', { desc = 'Move to end of viewport line' })
-vim.keymap.set({ 'o', 'v', 'n' }, 'gH', 'g^', { desc = 'Move to end of viewport line' })
+vim.keymap.set(
+  { 'o', 'v', 'n' },
+  'H',
+  '^',
+  { desc = 'Move to first nonblank of logical line' }
+)
+vim.keymap.set(
+  { 'o', 'v', 'n' },
+  'L',
+  'g_',
+  { desc = 'Move to last nonblank of logical line' }
+)
 
--- vim.keymap.set({ 'v', 'n' }, 'j', 'gj', { desc = 'Down same for wrapped or no wrapped' })
--- vim.keymap.set({ 'v', 'n' }, 'k', 'gk', { desc = 'Up same for wrapped or no wrapped' })
-
--- TODO: M available
+vim.keymap.set({ 'o', 'v', 'n' }, 'zh', 'H', { desc = 'Move to top of window' })
+vim.keymap.set({ 'o', 'v', 'n' }, 'zl', 'L', { desc = 'Move to bottom of window' })
+vim.keymap.set({ 'o', 'v', 'n' }, 'zm', 'M', { desc = 'Move to middle of window' })
 
 vim.keymap.set('n', 'Q', '<Nop>', { desc = 'Disable Q' })
 
 -- Delete without cutting
 vim.keymap.set({ 'n', 'v' }, 'x', '"_x', { desc = 'Delete without cutting' })
-vim.keymap.set({ 'n', 'v' }, 'c', '"_c', { desc = 'Delete without cutting' })
+-- TODO: review: this might be making the which key helpers confused regarding
+-- commands starting with c like for "changing surround"
+-- vim.keymap.set({ 'n', 'v' }, 'c', '"_c', { desc = 'Delete without cutting' })
 -- TODO: mapke normal mode 'D' delete the the whole line like dd, But leave a space
 -- vim.keymap.set('n', 'D', '"_D', { desc = 'Delete to end of line without cutting' })
 
@@ -165,23 +156,79 @@ vim.keymap.set(
 vim.keymap.set({ 'n', 'v' }, 'vv', 'V', { desc = 'Highlight line' })
 
 -- ******** Find and Search mappings **********
+local function set_search_pattern(pattern, jump_sequence)
+  vim.fn.setreg('/', pattern)
+  enable_search_highlight()
+  if jump_sequence and jump_sequence ~= '' then
+    vim.cmd.normal { jump_sequence, bang = true }
+  end
+end
+
+local function get_visual_selection_text()
+  local visual_mode = vim.fn.mode()
+  if not vim.tbl_contains({ 'v', 'V', '\22' }, visual_mode) then
+    visual_mode = vim.fn.visualmode()
+  end
+
+  local ok, region =
+    pcall(vim.fn.getregion, vim.fn.getpos 'v', vim.fn.getpos '.', { type = visual_mode })
+
+  if ok then
+    return table.concat(region, '\n')
+  end
+
+  local start_pos = vim.fn.getpos "'<"
+  local end_pos = vim.fn.getpos "'>"
+
+  if
+    start_pos[2] > end_pos[2]
+    or (start_pos[2] == end_pos[2] and start_pos[3] > end_pos[3])
+  then
+    start_pos, end_pos = end_pos, start_pos
+  end
+
+  -- Use the buffer API so multi-line visual searches keep the exact selected
+  -- text instead of relying on register side effects or manual slicing.
+  local lines = vim.api.nvim_buf_get_text(
+    0,
+    start_pos[2] - 1,
+    start_pos[3] - 1,
+    end_pos[2] - 1,
+    end_pos[3],
+    {}
+  )
+
+  return table.concat(lines, '\n')
+end
+
+local function exit_visual_mode()
+  vim.cmd [[execute "normal! \<Esc>"]]
+end
+
+local function set_literal_visual_search()
+  local selection = get_visual_selection_text()
+  if selection == '' then
+    return
+  end
+
+  exit_visual_mode()
+  set_search_pattern('\\V' .. vim.fn.escape(selection, '/\\'), 'nN')
+end
+
 vim.keymap.set(
   'v',
   '//',
-  "\"sy:let @/ = '\\V' . escape(@s, '/\\\\')<Bar>set hls<Bar>execute 'normal! nN'<CR>",
+  set_literal_visual_search,
   { silent = true, desc = 'Search in file: selected text' }
 )
 
-vim.keymap.set(
-  'n',
-  '*',
-  ":let @/='\\<'.expand('<cword>').'\\>'<CR>:set hls<CR>:execute 'normal! n'<CR>:execute 'normal! N'<CR>",
-  { silent = true, desc = 'Search in file: word under cursor' }
-)
+vim.keymap.set('n', '*', function()
+  set_search_pattern('\\<' .. vim.fn.expand '<cword>' .. '\\>', 'nN')
+end, { silent = true, desc = 'Search in file: word under cursor' })
 vim.keymap.set(
   'v',
   '*',
-  "\"sy:let @/ = '\\V' . escape(@s, '/\\\\')<Bar>set hls<Bar>execute 'normal! nN'<CR>",
+  set_literal_visual_search,
   { silent = true, desc = 'Search in file: selected text' }
 )
 
@@ -190,63 +237,101 @@ vim.keymap.set('n', '<leader>y', ':let @+ = expand("%:p")<CR>', {
   desc = '[Y]ank file path',
 })
 
---TODO: possibly change so it appends the current file path to the clipboard
-vim.keymap.set({ 'v', 'x' }, '<leader>Y', function()
-  vim.cmd 'normal! y'
-  local start_line = vim.fn.line "'<"
-  local end_line = vim.fn.line "'>"
+local function append_to_system_clipboard(text)
+  local clipboard = vim.fn.getreg '+'
+  local separator = ''
+  if clipboard ~= '' and clipboard:sub(-1) ~= '\n' then
+    separator = '\n'
+  end
+
+  vim.fn.setreg('+', clipboard .. separator .. text)
+end
+
+vim.keymap.set('n', '<leader>Y', function()
+  append_to_system_clipboard(vim.fn.expand '%:p')
+end, { desc = '[Y]ank file path and append to system clipboard' })
+
+local function append_block_to_system_clipboard(text)
+  local clipboard = vim.fn.getreg '+'
+  local separator = ''
+
+  if clipboard ~= '' then
+    if clipboard:sub(-2) == '\n\n' then
+      separator = ''
+    elseif clipboard:sub(-1) == '\n' then
+      separator = '\n'
+    else
+      separator = '\n\n'
+    end
+  end
+
+  vim.fn.setreg('+', clipboard .. separator .. text)
+end
+
+local function get_visual_line_range()
+  local mode = vim.fn.mode()
+  local start_line
+  local end_line
+
+  if vim.tbl_contains({ 'v', 'V', '\22' }, mode) then
+    start_line = vim.fn.getpos('v')[2]
+    end_line = vim.fn.getpos('.')[2]
+  else
+    start_line = vim.fn.line "'<"
+    end_line = vim.fn.line "'>"
+  end
+
+  if start_line > end_line then
+    start_line, end_line = end_line, start_line
+  end
+
+  return start_line == end_line and tostring(start_line) or start_line .. '-' .. end_line
+end
+
+vim.keymap.set({ 'n', 'i' }, '<C-g>', function()
+  local clipboard = vim.fn.getreg '+'
+  if clipboard == '' then
+    vim.notify('Clipboard is empty', vim.log.levels.WARN)
+    return
+  end
+  local col = vim.fn.col '.'
+  local link = '[](' .. clipboard .. ')'
+  vim.api.nvim_put({ link }, 'c', true, true)
+  vim.fn.cursor(vim.fn.line '.', col + 1)
+  vim.cmd 'startinsert'
+end, { desc = 'Insert markdown link from clipboard' })
+
+-- TODO: map normal mode Y to something. i dont have much use for the default
+-- which is yanking from cursor to the end of the line
+
+vim.keymap.set({ 'v', 'x' }, 'Y', function()
+  append_to_system_clipboard(get_visual_selection_text())
+  exit_visual_mode()
+end, { desc = '[Y]ank selected text, append to system clipboard' })
+
+local function get_visual_selection_with_path()
+  local selected_text = get_visual_selection_text()
   local filepath = vim.fn.expand '%:p'
-  local line_range = start_line == end_line and tostring(start_line)
-    or start_line .. '-' .. end_line
-  local result = '## ' .. filepath .. ':' .. line_range
-  -- Set the clipboard register with our formatted result
-  vim.fn.setreg('+', result)
-  -- vim.notify(
-  --   'Copied: ' .. filepath .. ':' .. line_range .. ' with selected text',
-  --   vim.log.levels.INFO
-  -- )
-end, { desc = '[Y]ank file path, line range' })
+  local line_range = get_visual_line_range()
 
--- TODO:  does there need to be something for normal mode <leader>Y  ?
-
-vim.keymap.set({ 'n', 'x' }, '<leader>Y', function()
-  vim.cmd 'normal! yy'
-  -- Get selection info after yanking
-  local start_line = vim.fn.line "'<"
-  local end_line = vim.fn.line "'>"
-  -- Get the selected text from the unnamed register (just yanked)
-  local selected_text = vim.fn.getreg '"'
-  local filepath = vim.fn.expand '%:p'
-  local line_range = start_line == end_line and tostring(start_line)
-    or start_line .. '-' .. end_line
-  local result = selected_text .. '\n\n' .. '## ' .. filepath .. ':' .. line_range
-  -- Set the clipboard register with our formatted result
-  vim.fn.setreg('+', result)
-  -- vim.notify(
-  --   'Copied: ' .. filepath .. ':' .. line_range .. ' with selected text',
-  --   vim.log.levels.INFO
-  -- )
-end, { desc = '[Y]ank current line and file path' })
-
+  return selected_text .. '\n\n' .. '## ' .. filepath .. ':' .. line_range
+end
 
 vim.keymap.set({ 'v', 'x' }, '<leader>y', function()
-  vim.cmd 'normal! y'
-  -- Get selection info after yanking
-  local start_line = vim.fn.line "'<"
-  local end_line = vim.fn.line "'>"
-  -- Get the selected text from the unnamed register (just yanked)
-  local selected_text = vim.fn.getreg '"'
-  local filepath = vim.fn.expand '%:p'
-  local line_range = start_line == end_line and tostring(start_line)
-    or start_line .. '-' .. end_line
-  local result = selected_text .. '\n\n' .. '## ' .. filepath .. ':' .. line_range
+  local result = get_visual_selection_with_path()
   -- Set the clipboard register with our formatted result
   vim.fn.setreg('+', result)
+  exit_visual_mode()
   -- vim.notify(
   --   'Copied: ' .. filepath .. ':' .. line_range .. ' with selected text',
   --   vim.log.levels.INFO
   -- )
 end, { desc = '[Y]ank file path, line range, and selected text' })
+
+vim.keymap.set({ 'v', 'x' }, '<leader>Y', function()
+  append_block_to_system_clipboard(get_visual_selection_with_path())
+  exit_visual_mode()
+end, { desc = '[Y]ank and append to clipboard: file path, line range, selected text' })
 
 -- Yank entire document with file path appended
 vim.keymap.set('n', 'yaD', function()
@@ -279,6 +364,14 @@ vim.keymap.set('i', 'jk', '<Esc>', { desc = 'Exit insert mode' })
 vim.keymap.set('i', 'jj', '<Esc>', { desc = 'Exit insert mode' })
 vim.keymap.set('i', 'kk', '<Esc>', { desc = 'Exit insert mode' })
 
+-- Preserve Karabiner q-mode navigation and deletion in Insert mode.
+vim.keymap.set('i', '<M-Left>', '<C-Left>', { desc = 'Move backward by word' })
+vim.keymap.set('i', '<M-Right>', '<C-Right>', { desc = 'Move forward by word' })
+vim.keymap.set('i', '<D-Left>', '<Home>', { desc = 'Move to beginning of line' })
+vim.keymap.set('i', '<D-Right>', '<End>', { desc = 'Move to end of line' })
+vim.keymap.set('i', '<M-BS>', '<C-w>', { desc = 'Delete backward by word' })
+vim.keymap.set('i', '<M-Del>', '<C-o>"_de', { desc = 'Delete forward by word' })
+
 function DeleteLineIfEmpty()
   if vim.fn.getline '.' == '' then
     return '"_dd'
@@ -304,51 +397,6 @@ vim.keymap.set({ 'n', 'v' }, 'D', DeleteLineLeaveBlankLine, { expr = true })
 vim.keymap.set('n', 'dd', DeleteLineIfEmpty, { expr = true })
 vim.keymap.set('n', 'd', DeleteIfEmpty, { expr = true })
 
--- -- Delete blank lines in selection
--- function DeleteBlankLinesInSelection()
---   vim.cmd "'<,'>g/^\\s*$/d"
--- end
--- vim.keymap.set(
---   'v',
---   '<leader>d',
---   ':<C-u>lua DeleteBlankLinesInSelection()<CR>',
---   { desc = 'Delete blank lines in visual selection' }
--- )
--- vim.keymap.set(
---   'v',
---   '<leader>e',
---   ':<C-u>lua DeleteBlankLinesInSelection()<CR>',
---   { desc = 'Delete blank lines in visual selection' }
--- )
---
--- -- Delete next or current blank line
--- function DeleteNextOrCurrentBlankLine()
---   if vim.fn.getline('.'):match '^%s*$' then
---     vim.cmd 'normal! "_dd'
---   else
---     local found = vim.fn.search('^\\s*$', 'W')
---     if found > 0 then
---       vim.cmd 'normal! "_dd'
---     end
---   end
--- end
--- vim.keymap.set('n', '<leader>d', DeleteNextOrCurrentBlankLine, { desc = 'Delete next or current blank line' })
---
--- -- Delete previous or current blank line
--- function DeletePreviousOrCurrentBlankLine()
---   if vim.fn.getline('.'):match '^%s*$' then
---     vim.cmd 'normal! "_dd'
---   else
---     local found = vim.fn.search('^\\s*$', 'bW')
---     if found > 0 then
---       vim.cmd 'normal! "_dd'
---     end
---   end
--- end
--- vim.keymap.set('n', '<leader>e', DeletePreviousOrCurrentBlankLine, { desc = 'Delete previous or current blank line' })
-
--- What's the difference between the quick fix list and the location list?
---
 --   Quickfix List (:copen):
 --   - Global to the entire Vim session
 --   - Shared across all windows and tabs
@@ -372,7 +420,11 @@ vim.keymap.set('n', 'd', DeleteIfEmpty, { expr = true })
 --
 --   Most commonly you'll use quickfix for grep results and location
 --   list for LSP errors/warnings.
---
+
+-- TODO:  QUESTION: what is this? whats difference between location list and quickfix list?
+-- QUESTION: maybe this should be remaped to something else coresponding to location
+-- letters/commands, and make a similar function for the QUICKFIX list and map it to:
+-- <leader>qq  ??
 -- Diagnostic keymaps
 -- TODO: this opens the location list, not the quickfix list
 vim.keymap.set(
@@ -408,17 +460,27 @@ vim.api.nvim_create_user_command('Ctoggle', function()
   vim.cmd 'cwindow'
 end, { desc = 'Toggle quickfix list' })
 
+-- Default export path: global cwd (where nvim was launched, ignoring :tcd/:lcd),
+-- named with an ISO date prefix per the YYYY_MM_DD-name convention.
+local function qf_export_path(arg, suffix)
+  if arg ~= '' then return arg end
+  return vim.fs.joinpath(vim.fn.getcwd(-1, -1), os.date('%Y_%m_%d-%H%M%S-') .. suffix .. '.txt')
+end
+
+-- Export quickfix list as file:line:col:text, reloadable with :cfile
 vim.api.nvim_create_user_command('QfToFile', function(opts)
-  vim.cmd('redir > ' .. filename)
-  vim.cmd 'silent clist'
-  vim.cmd 'redir END'
+  local filename = qf_export_path(opts.args, 'quickfix')
+  local lines = vim.tbl_map(function(item)
+    return ('%s:%d:%d:%s'):format(vim.fn.bufname(item.bufnr), item.lnum, item.col, item.text)
+  end, vim.fn.getqflist())
+  vim.fn.writefile(lines, filename)
   print('Quickfix list exported to ' .. filename)
-  vim.cmd('edit ' .. filename)
-end, { nargs = '?' })
+  vim.cmd.edit(vim.fn.fnameescape(filename))
+end, { nargs = '?', complete = 'file' })
 
 -- Export quickfix list to file (unique files only)
 vim.api.nvim_create_user_command('QfToFileU', function(opts)
-  local filename = opts.args ~= '' and opts.args or 'quickfix_export.txt'
+  local filename = qf_export_path(opts.args, 'quickfix-files')
   local qflist = vim.fn.getqflist()
   -- Extract unique filenames
   local files = {}
@@ -448,7 +510,6 @@ vim.keymap.set('n', '<leader>qa', function()
   local file = vim.fn.expand '%'
   local line_num = vim.fn.line '.'
   local line_text = vim.fn.getline '.'
-  local entry = file .. ':' .. line_num .. ':' .. line_text
   vim.fn.setqflist(
     { {
       filename = file,
@@ -457,9 +518,14 @@ vim.keymap.set('n', '<leader>qa', function()
     } },
     'a'
   ) -- 'a' means append
-  print('Added to quickfix: ' .. entry)
+  vim.notify(
+    ('Added %s:%d to quickfix'):format(file, line_num),
+    vim.log.levels.INFO,
+    { timeout = 1500 }
+  )
 end, { desc = '[Q]uickfix [A]dd current line' })
 
+-- DELETE: ??? this might be redundant. i think i can just delete using dd
 vim.keymap.set('n', '<leader>qd', function()
   local qflist = vim.fn.getqflist()
   local current_idx = vim.fn.line '.'
@@ -519,11 +585,11 @@ vim.api.nvim_create_autocmd('FileType', {
 --   vim.cmd 'wq'
 -- end, { desc = 'Write and Quit buffer' })
 
-vim.keymap.set('n', '<leader>ksl', function()
+vim.keymap.set('n', '<leader>\\sl', function()
   vim.cmd ':Lazy sync'
 end, { desc = ':[L]azy [S]ync' })
 
-vim.keymap.set('n', '<leader>kso', function()
+vim.keymap.set('n', '<leader>\\so', function()
   vim.cmd 'source ~/.config/nvim/init.lua'
   print 'Reloaded nvim config'
 end, { desc = '[S][O]urce nvim config' })
@@ -537,72 +603,72 @@ end, { desc = '[S][O]urce nvim config' })
 -- )
 
 -- Navigation mappings for Karabiner sections
-vim.keymap.set('n', '<leader>kkn', 'G?normal-mappings--<CR>zt')
-vim.keymap.set('n', '<leader>kkcb', 'G?clipboard-mappings--<CR>zt')
-vim.keymap.set('n', '<leader>kktx', 'G?text-objects--<CR>zt')
-vim.keymap.set('n', '<leader>kkf', 'G?find-mappings--<CR>zt')
-vim.keymap.set('n', '<leader>kkfr', 'G?find-and-replace-mappings--<CR>zt')
-vim.keymap.set('n', '<leader>kkp', 'G?plugins--<CR>zt')
-vim.keymap.set('n', '<leader>kke', 'G?experiments--<CR>zt')
-vim.keymap.set('n', '<leader>kkeg', 'G?experiments-good--<CR>zt')
-vim.keymap.set('n', '<leader>kkte', 'G?text-manipulation--<CR>zt')
-vim.keymap.set('n', '<leader>kkmv', 'G?movement-mappings--<CR>zt')
+vim.keymap.set('n', '<leader>\\kn', 'G?normal-mappings--<CR>zt')
+vim.keymap.set('n', '<leader>\\kcb', 'G?clipboard-mappings--<CR>zt')
+vim.keymap.set('n', '<leader>\\ktx', 'G?text-objects--<CR>zt')
+vim.keymap.set('n', '<leader>\\kf', 'G?find-mappings--<CR>zt')
+vim.keymap.set('n', '<leader>\\kfr', 'G?find-and-replace-mappings--<CR>zt')
+vim.keymap.set('n', '<leader>\\kp', 'G?plugins--<CR>zt')
+vim.keymap.set('n', '<leader>\\ke', 'G?experiments--<CR>zt')
+vim.keymap.set('n', '<leader>\\keg', 'G?experiments-good--<CR>zt')
+vim.keymap.set('n', '<leader>\\kte', 'G?text-manipulation--<CR>zt')
+vim.keymap.set('n', '<leader>\\kmv', 'G?movement-mappings--<CR>zt')
 
 -- Karabiner template navigation
-vim.keymap.set('n', '<leader>kkt', 'G/templates--<CR>zt')
-vim.keymap.set('n', '<leader>kkto', 'G/to--<CR>zt')
-vim.keymap.set('n', '<leader>kkfrom', 'G/from--<CR>zt')
-vim.keymap.set('n', '<leader>kkl', 'G/layers--<CR>zt')
-vim.keymap.set('n', '<leader>kkgr', 'G/grave-mode--<CR>zt')
-vim.keymap.set('n', '<leader>kkf2', 'G/f2-mode--<CR>zt')
-vim.keymap.set('n', '<leader>kkhl', 'G/hyper-mode+<CR>zt')
-vim.keymap.set('n', '<leader>kkal', 'G/applications-list--<CR>zt')
+vim.keymap.set('n', '<leader>\\kt', 'G/templates--<CR>zt')
+vim.keymap.set('n', '<leader>\\kto', 'G/to--<CR>zt')
+vim.keymap.set('n', '<leader>\\kfrom', 'G/from--<CR>zt')
+vim.keymap.set('n', '<leader>\\kl', 'G/layers--<CR>zt')
+vim.keymap.set('n', '<leader>\\kgr', 'G/grave-mode--<CR>zt')
+vim.keymap.set('n', '<leader>\\kf2', 'G/f2-mode--<CR>zt')
+vim.keymap.set('n', '<leader>\\khl', 'G/hyper-mode+<CR>zt')
+vim.keymap.set('n', '<leader>\\kal', 'G/applications-list--<CR>zt')
 
-vim.keymap.set('n', '<leader>kkm', 'G?main--<CR>zt')
-vim.keymap.set('n', '<leader>kka', 'G/app-specific--<CR>zz<CR>')
-vim.keymap.set('n', '<leader>kkvs', 'G/vscode--<CR>zt')
-vim.keymap.set('n', '<leader>kkcu', 'G/cursor--<CR>zt')
-vim.keymap.set('n', '<leader>kkvc', 'G/vsodeAndCursor--<CR>zt')
-vim.keymap.set('n', '<leader>kkff', 'G/firefox--<CR>zt')
-vim.keymap.set('n', '<leader>kkch', 'G/chrome--<CR>zt')
-vim.keymap.set('n', '<leader>kkfx', 'G/firefox-extension--<CR>zt')
-vim.keymap.set('n', '<leader>kkb', 'G/bear--<CR>zt')
+vim.keymap.set('n', '<leader>\\km', 'G?main--<CR>zt')
+vim.keymap.set('n', '<leader>\\ka', 'G/app-specific--<CR>zz<CR>')
+vim.keymap.set('n', '<leader>\\kvs', 'G/vscode--<CR>zt')
+vim.keymap.set('n', '<leader>\\kcu', 'G/cursor--<CR>zt')
+vim.keymap.set('n', '<leader>\\kvc', 'G/vsodeAndCursor--<CR>zt')
+vim.keymap.set('n', '<leader>\\kff', 'G/firefox--<CR>zt')
+vim.keymap.set('n', '<leader>\\kch', 'G/chrome--<CR>zt')
+vim.keymap.set('n', '<leader>\\kfx', 'G/firefox-extension--<CR>zt')
+vim.keymap.set('n', '<leader>\\kb', 'G/bear--<CR>zt')
 
-vim.keymap.set('n', '<leader>kkgs', 'G/global--section--<CR>zt<CR>')
-vim.keymap.set('n', '<leader>kkg', 'G/global--<CR>zt<CR>')
+vim.keymap.set('n', '<leader>\\kgs', 'G/global--section--<CR>zt<CR>')
+vim.keymap.set('n', '<leader>\\kg', 'G/global--<CR>zt<CR>')
 
 -- Q-mode mappings
-vim.keymap.set('n', '<leader>kkq', 'G/q-mode--<CR>zt')
-vim.keymap.set('n', '<leader>kkq1', 'G/q-FUNCTION--<CR>zt')
-vim.keymap.set('n', '<leader>kkq2', 'G/q-NUMBERS--<CR>zt')
-vim.keymap.set('n', '<leader>kkqq', 'G/q-QUERTY--<CR>zt')
-vim.keymap.set('n', '<leader>kkqa', 'G/q-ASDFG--<CR>zt')
-vim.keymap.set('n', '<leader>kkqz', 'G/q-ZXCVB--<CR>zt')
+vim.keymap.set('n', '<leader>\\kq', 'G/q-mode--<CR>zt')
+vim.keymap.set('n', '<leader>\\kq1', 'G/q-FUNCTION--<CR>zt')
+vim.keymap.set('n', '<leader>\\kq2', 'G/q-NUMBERS--<CR>zt')
+vim.keymap.set('n', '<leader>\\kqq', 'G/q-QUERTY--<CR>zt')
+vim.keymap.set('n', '<leader>\\kqa', 'G/q-ASDFG--<CR>zt')
+vim.keymap.set('n', '<leader>\\kqz', 'G/q-ZXCVB--<CR>zt')
 
 -- Hyper-mode mappings
-vim.keymap.set('n', '<leader>kkh', 'G/hyper-mode--<CR>zt')
-vim.keymap.set('n', '<leader>kkhn', 'G/hyper-mode-navigation<CR>zt')
-vim.keymap.set('n', '<leader>kkh1', 'G/hyper-FUNCTION--<CR>zt')
-vim.keymap.set('n', '<leader>kkh2', 'G/hyper-NUMBERS--<CR>zt')
-vim.keymap.set('n', '<leader>kkhq', 'G/hyper-QUERTY--<CR>zt')
-vim.keymap.set('n', '<leader>kkha', 'G/hyper-ASDFG--<CR>zt')
-vim.keymap.set('n', '<leader>kkhz', 'G/hyper-ZXCVB--<CR>zt')
+vim.keymap.set('n', '<leader>\\kh', 'G/hyper-mode--<CR>zt')
+vim.keymap.set('n', '<leader>\\khn', 'G/hyper-mode-navigation<CR>zt')
+vim.keymap.set('n', '<leader>\\kh1', 'G/hyper-FUNCTION--<CR>zt')
+vim.keymap.set('n', '<leader>\\kh2', 'G/hyper-NUMBERS--<CR>zt')
+vim.keymap.set('n', '<leader>\\khq', 'G/hyper-QUERTY--<CR>zt')
+vim.keymap.set('n', '<leader>\\kha', 'G/hyper-ASDFG--<CR>zt')
+vim.keymap.set('n', '<leader>\\khz', 'G/hyper-ZXCVB--<CR>zt')
 
 -- Z-mode mappings
-vim.keymap.set('n', '<leader>kkz', 'G/z-mode--<CR>zt')
-vim.keymap.set('n', '<leader>kkz1', 'G/z-FUNCTION--<CR>zt')
-vim.keymap.set('n', '<leader>kkz2', 'G/z-NUMBERS--<CR>zt')
-vim.keymap.set('n', '<leader>kkzq', 'G/z-QUERTY--<CR>zt')
-vim.keymap.set('n', '<leader>kkza', 'G/z-ASDFG--<CR>zt')
-vim.keymap.set('n', '<leader>kkzz', 'G/z-ZXCVB--<CR>zt')
+vim.keymap.set('n', '<leader>\\kz', 'G/z-mode--<CR>zt')
+vim.keymap.set('n', '<leader>\\kz1', 'G/z-FUNCTION--<CR>zt')
+vim.keymap.set('n', '<leader>\\kz2', 'G/z-NUMBERS--<CR>zt')
+vim.keymap.set('n', '<leader>\\kzq', 'G/z-QUERTY--<CR>zt')
+vim.keymap.set('n', '<leader>\\kza', 'G/z-ASDFG--<CR>zt')
+vim.keymap.set('n', '<leader>\\kzz', 'G/z-ZXCVB--<CR>zt')
 
 -- Quote-mode mappings
-vim.keymap.set('n', '<leader>kkqu', 'G/quote-mode-<CR>zt')
-vim.keymap.set('n', '<leader>kkqu1', 'G/quote-FUNCTION--<CR>zt')
-vim.keymap.set('n', '<leader>kkqu2', 'G/quote-NUMBERS--<CR>zt')
-vim.keymap.set('n', '<leader>kkquq', 'G/quote-QUERTY--<CR>zt')
-vim.keymap.set('n', '<leader>kkqua', 'G/quote-ASDFG--<CR>zt')
-vim.keymap.set('n', '<leader>kkquz', 'G/quote-ZXCVB--<CR>zt')
+vim.keymap.set('n', '<leader>\\kqu', 'G/quote-mode-<CR>zt')
+vim.keymap.set('n', '<leader>\\kqu1', 'G/quote-FUNCTION--<CR>zt')
+vim.keymap.set('n', '<leader>\\kqu2', 'G/quote-NUMBERS--<CR>zt')
+vim.keymap.set('n', '<leader>\\kquq', 'G/quote-QUERTY--<CR>zt')
+vim.keymap.set('n', '<leader>\\kqua', 'G/quote-ASDFG--<CR>zt')
+vim.keymap.set('n', '<leader>\\kquz', 'G/quote-ZXCVB--<CR>zt')
 
 -- Exit terminal mode in the builtin terminal with a shortcut that is a bit easier
 -- for people to discover. Otherwise, you normally need to press <C-\><C-n>, which
@@ -611,516 +677,8 @@ vim.keymap.set('n', '<leader>kkquz', 'G/quote-ZXCVB--<CR>zt')
 -- or just use <C-\><C-n> to exit terminal mode
 vim.keymap.set('t', '<Esc><Esc>', '<C-\\><C-n>', { desc = 'Exit terminal mode' })
 
--- ------------------------  experiments ------------------------
-
--- vim.keymap.set(
---   'n',
---   '<leader>',
---   vim.cmd.Ex,
---   { desc = 'Explorer (netrw) (not working bc oil replacing it?' }
--- )
--- ------------------------------------------------
--- TODO: make gt = peek definition
--- TODO: make gj = show hover
-
--- Console log functions
--- function ConsoleLogHereVisual()
--- 	local start_line = vim.fn.line("'<")
--- 	local end_line = vim.fn.line("'>")
--- 	local lines = vim.fn.getline(start_line, end_line)
--- 	local log_statement = "console.log('\\n***** " .. table.concat(lines, " ") .. " **\\n')"
--- 	vim.fn.setreg("+", log_statement)
--- 	vim.cmd("normal! o")
--- 	vim.cmd('normal! "+p')
--- 	vim.cmd("normal! dd")
--- 	vim.cmd("normal! k")
--- end
--- vim.keymap.set("v", "<leader>TODO", ":<C-u>lua ConsoleLogHereVisual()<CR>")
-
--- TODO: make work. right now it doesnt show up as command in command mode
--- function ShowReg()
--- 	local regs = vim.fn.execute("registers")
--- 	vim.cmd("vnew")
--- 	vim.api.nvim_buf_set_option(0, "buftype", "nofile")
--- 	vim.api.nvim_buf_set_option(0, "bufhidden", "wipe")
--- 	vim.api.nvim_buf_set_option(0, "swapfile", false)
--- 	vim.api.nvim_buf_set_lines(0, 0, -1, false, vim.split(regs, "\n"))
--- end
--- vim.api.nvim_create_user_command("ShowReg", ShowReg, {})
-
--- Replace mappings
--- vim.keymap.set('n', '<leader>r', ":let @/='\\<'.expand('<cword>').'\\>'<CR>cgn", { silent = true, desc = 'Replace' })
--- vim.keymap.set('x', '<leader>r', '"sy:let @/=@s<CR>cgn', { silent = true, desc = 'Replace' })
--- ***** TODO: from old $HOME/.config/nvim/init.vim file ****
--- TODO: install and configure these plugins, or find lua replacements
--- " find the last import statement like import {..} from '...' then center page (doesnt exactly work)
--- " nnoremap <leader>6 G?import<CR> gg<C-o>)zz
-
--- Plug 'vuciv/golf'
---
--- " https://github.com/justinmk/vim-sneak
--- " works but i want to try out subversive
--- Plug 'justinmk/vim-sneak'
-
--- Plug 'tpope/vim-surround'
--- Plug 'mg979/vim-visual-multi', {'branch': 'master'}
---
--- " Im not actually sure if this is doing anything for me. because in vscode
--- " leaving insert mode is handled by vscode
--- Plug 'jdhao/better-escape.vim'
-
--- " https://github.com/takac/vim-hardtime
--- Plug 'takac/vim-hardtime'
--- " find-and-replace-mappings--
-
--- " https://vimawesome.com/plugin/abolish-vim
--- " https://til.hashrocket.com/posts/850ace86d4-case-aware-substitution-with-vim-abolish
--- " Want to turn fooBar into foo_bar? Press crs (coerce to snake_case).
--- " MixedCase (crm), camelCase (crc), snake_case (crs), UPPER_CASE (cru),
--- " dash-case (cr-), dot.case (cr.), space case (cr<space>), and Title Case
--- " (crt) are all just 3 keystrokes away.
--- Plug 'tpope/vim-abolish'
-
--- " https://github.com/arthurxavierx/vim-caser
--- " Plug 'arthurxavierx/vim-caser'
---
--- " https://github.com/tpope/vim-repeat
--- Plug 'tpope/vim-repeat'
-
--- " TODO: experimental
--- " Plug 'svermeulen/vim-easyclip'
---
--- " https://github.com/svermeulen/vim-subversive
--- Plug 'svermeulen/vim-subversive'
---
--- Plug 'svermeulen/vim-yoink'
---
--- Plug 'tpope/vim-unimpaired'
---
--- " 2024_04_19_T15_23 added vim-indent-object
--- Plug 'michaeljsmith/vim-indent-object'
---
--- " ********* Pluggin Mapping Definitions begin ***************
---
--- " TODO: rememad  'michaeljsmith/vim-indent-object' aI to ai
--- " Disable the default mappings
--- " let g:indent_object_no_default_key_mappings = 1
---
--- " Remap `ai` to act like `aI`
--- " TODO doesnt work
--- " xmap ai <Plug>(IndentObject_aI)
--- " omap ai <Plug>(IndentObject_aI)
--- " xnoremap ai <Plug>(IndentObject_aI)
--- " onoremap ai <Plug>(IndentObject_aI)
---
--- " " 1. Remove the plugin’s default ai text-object mapping
--- " silent! ounmap ai
--- " silent! vunmap ai
---
--- " " 2. Remap ai to do what aI normally does
--- " onoremap <silent> ai :<C-u>call <SID>HandleTextObjectMapping(0, 1, 0, [line("."), line("."), col("."), col(".")])<CR>
--- " vnoremap <silent> ai :<C-u>call <SID>HandleTextObjectMapping(0, 1, 1, [line("'<"), line("'>"), col("'<"), col("'>")])<CR><Esc>gv
--- "
--- " set nocompatible
--- " Replace all normal/visual operator mappings from `cr` to `<leader>r`.
--- " // TODO: not working
--- " For snake_case:
--- nmap <silent> <leader><leader>as <Plug>(abolish-coerce)S
--- xmap <silent> <leader><leader>as <Plug>(abolish-coerce)S
--- omap <silent> <leader><leader>as <Plug>(abolish-coerce)S
---
--- " For camelCase:
--- nmap <silent> <leader><leader>ac <Plug>(abolish-coerce)c
--- xmap <silent> <leader><leader>ac <Plug>(abolish-coerce)c
--- omap <silent> <leader><leader>ac <Plug>(abolish-coerce)c
---
--- " etc.
---
--- " vim-repeat
--- " silent! call repeat#set("\<Plug>MyWonderfulMap", v:count)  TODO: make this work
---
--- " ********* sneak settings ****
--- " works perfect for sneak forward, but now ror some reason still having
--- " problem. sometimes its sending period and this repeating edits when i'm just
--- " trying move to next with space. maybe its something else going on with mac.
--- " Ok now i actually dont think this is the problem. I think its bc vim-repeat
--- " is now able to repeat more kinds of things, and something else on the
--- " computer is making it auto insert period when i hit two spaces
--- "
--- let g:sneak#s_next = 1
---
--- " TODO(?) make command + \ trigger sneak backwards. or Shift + \
--- " 2-character Sneak (default)
--- "
---
--- "  TODO: Change sneak forward to the default, whatever it is.
--- " nmap mm <Plug>Sneak_s
--- " xmap mm <Plug>Sneak_s
--- " omap mm <Plug>Sneak_s
-
--- "  TODO: change to default
--- " nmap MM <Plug>Sneak_S
--- " xmap MM <Plug>Sneak_S
--- " omap MM <Plug>Sneak_S
-
--- " Repeat motion forward
--- "  TODO: change to default
--- " nmap <Space> <Plug>Sneak_;
--- " xmap <Space> <Plug>Sneak_;
--- " omap <Space> <Plug>Sneak_;
-
--- " Map 'f', 'F', 't', 'T' to Sneak in Normal Mode
--- nmap f <Plug>Sneak_f
--- nmap F <Plug>Sneak_F
--- nmap t <Plug>Sneak_t
--- nmap T <Plug>Sneak_T
-
--- " Optional: Map in Visual and Operator-Pending Modes if desired
--- xmap f <Plug>Sneak_f
--- xmap F <Plug>Sneak_F
--- xmap t <Plug>Sneak_t
--- xmap T <Plug>Sneak_t
-
--- omap f <Plug>Sneak_f
--- omap F <Plug>Sneak_F
--- omap t <Plug>Sneak_t
--- omap T <Plug>Sneak_T
-
--- let g:hardtime_default_on = 1
--- let g:hardtime_showmsg = 1
--- let g:hardtime_maxcount = 35
--- let g:list_of_normal_keys = ["h", "j", "k", "l", "-", "+", "<UP>", "<DOWN>", "<LEFT>", "<RIGHT>"]
--- let g:list_of_visual_keys = ["h", "j", "k", "l", "-", "+", "<UP>", "<DOWN>", "<LEFT>", "<RIGHT>"]
--- let g:list_of_insert_keys = ["<UP>", "<DOWN>", "<LEFT>", "<RIGHT>"]
--- let g:list_of_disabled_keys = [""]
-
--- " ****** vim-subversive (find-and-replace-mappings--)  ******
--- " vim-substitute does same thing and is popular
-
--- " s for substitute
--- " https://www.youtube.com/watch?v=crxHxqzXMzw
--- " let g:subversiveCurrentTextRegister = 'r' < this makes it so i can do sgn then . to repeat
--- nmap s <plug>(SubversiveSubstitute)
--- nmap ss <plug>(SubversiveSubstituteLine)
--- nmap S <plug>(SubversiveSubstituteToEndOfLine)
-
--- " for blocks of text (not confirming each one)
--- nmap <leader>s <plug>(SubversiveSubstituteRange)
--- xmap <leader>s <plug>(SubversiveSubstituteRange)
--- nmap <leader>ss <plug>(SubversiveSubstituteWordRange)
-
--- " confirming each one (not working)
--- " TODO make this work
--- " nmap <leader>cs <plug>(SubversiveSubstituteRangeConfirm)
--- " xmap <leader>cs <plug>(SubversiveSubstituteRangeConfirm)
--- " nmap <leader>css <plug>(SubversiveSubstituteWordRangeConfirm)
-
--- " for doing replaces but keeping the case of the replaced word (uses vim-abolish)
--- nmap <leader><leader>s <plug>(SubversiveSubvertRange)
--- xmap <leader><leader>s <plug>(SubversiveSubvertRange)
--- nmap <leader><leader>ss <plug>(SubversiveSubvertWordRange)
-
--- " so it works with yoink
--- xmap s <plug>(SubversiveSubstitute)
--- xmap p <plug>(SubversiveSubstitute)
--- xmap P <plug>(SubversiveSubstitute)
--- let g:subversiveCurrentTextRegister = 'r'
--- " ***** end vim-subversive  *****
-
--- " -- Yoink settings  // NOTE: not important. I dont even know what this does
--- nmap p <plug>(YoinkPaste_p)
--- nmap P <plug>(YoinkPaste_P)
-
--- " Also replace the default gp with yoink paste so we can toggle paste in this case too
--- nmap gp <plug>(YoinkPaste_gp)
--- nmap gP <plug>(YoinkPaste_gP)
-
--- " ******************* movement-mappings--  (pluggins) ********************
---   " VSCode extension commands (vscode-mode-- vscode--)
--- if exists('g:vscode')
--- " ************* Find-and-replace-mappings-- ***************************
-
---   " macro for pasting in env vars from aws
---   nnoremap <leader>vars Gvippgv:norm df<Space><CR>
---   " picking out the event from a datadog log copy, then replacing the whole document
---   nnoremap <leader>vent /event":<CR>f{ya{ggVGp
---   nnoremap <leader>tail /detail":<CR>f{ya{ggVGp
---   " nnoremap <leader>context /context":<CR>f{ya{ggVGp  "" TODO make this work
---   " noremap <leader>rl <Cmd>call VSCodeNotify('workbench.action.reloadWindow')<CR>
-
---   " TODO: make this work
---   command! -bar -nargs=0 NeoVimFunctionFindInFileFromClipboard call NeoVimFunctionFindInFileFromClipboardFunction()
---   function! NeoVimFunctionFindInFileFromClipboardFunction() abort
---       let query = @+
---       let @/ = query
---       call VSCodeNotify('workbench.action.findInFiles', {'query': query, 'isRegex': v:false})
---   endfunction
-
---   " Find and replace visual selection
---   command! -bar -nargs=0 FindReplaceGlobalVisual call FindReplaceGlobalVisualFunction()
---   function! FindReplaceGlobalVisualFunction() abort
---       let query = @p
---       let @/ = query
---       call VSCodeNotify('workbench.action.findInFiles', {'query': query, 'replace': '', 'isRegex': v:false})
---   endfunction
---   xnoremap <silent> <Leader><Leader><Leader>r "py<Esc>:FindReplaceGlobalVisual<CR>
-
---     " Find and replace word under caret
---   command! -bar -nargs=0 FindReplaceGlobal call FindReplaceGlobalFunction()
---   function! FindReplaceGlobalFunction() abort
---       let query = expand('<cword>')
---       let @/ = query
---       call VSCodeNotify('workbench.action.findInFiles', {'query': query, 'replace': ''})
---   endfunction
---   nnoremap <silent> <Leader><Leader><Leader>r :FindReplaceGlobal<CR>
-
--- command! -bar -nargs=0 FindConsoleAndLoggerLogs call FindConsoleAndLoggerLogs()
--- function! FindConsoleAndLoggerLogs() abort
---     " alternate? '(?:console|logger)\.(?:log|error|warn|debug|info)\((?:[^)(]+|\((?:[^)(]+|\([^)(]*\))*\))*\)'
---     let queryForVscode = '.*(?:console)\.(?:log|error|warn|debug|info)\((?:[^)(]+|\((?:[^)(]+|\((?:[^)(]+|\([^)(]*\))*\))*\))*\).*\n'
---     let queryForVim = '\v(console|logger)\.(log|error|warn|debug|info)\('
---     let @/ = queryForVim
---     call VSCodeNotify('workbench.action.findInFiles', {'query': queryForVscode, 'isRegex': v:true})
--- endfunction
--- nnoremap <leader>kl :FindConsoleAndLoggerLogs<CR>
-
--- command! -bar -nargs=0 FindConsoleLogs call FindConsoleLogs()
--- function! FindConsoleLogs() abort
---     let queryForVscode = '.*(?:console)\.(?:log|error|warn|debug|info)\((?:[^)(]+|\((?:[^)(]+|\((?:[^)(]+|\([^)(]*\))*\))*\))*\).*\n'
---     let queryForVim = '\vconsole\.(log|error|warn|debug|info)\('
---     let @/ = queryForVim
---     call VSCodeNotify('workbench.action.findInFiles', {'query': queryForVscode, 'isRegex': v:true})
--- endfunction
--- " Key mapping to trigger FindConsoleLogs command
--- nnoremap <leader>kc :FindConsoleLogs<CR>
-
--- command! -bar -nargs=0 FindTodos call FindTodos()
--- function! FindTodos() abort
---     let queryForVscode = '.*(?:\/\/|#|")\s*(TODO|ERROR|NOTE|FAILING|PASSING|REFACTOR|DELETE|IMP|QUESTION|EXPLANATION)[^\n]*\n?|\/\*\*[\s\S]*?(TODO|ERROR|NOTE|FAILING|PASSING|REFACTOR|DELETE|IMP|QUESTION|EXPLANATION)[\s\S]*?\*\/.*'
---   " Simplified pattern for inline TODO comments (works)
---   let queryForVim = '\v(\/\/|#|")\s*(TODO|ERROR|NOTE|REFACTOR|DELETE|IMP|QUESTION|EXPLANATION)'
---     " Set the search register (/) with the regex pattern
---     let @/ = queryForVim
---     call VSCodeNotify('workbench.action.findInFiles', {'query': queryForVscode, 'isRegex': v:true})
--- endfunction
--- nnoremap <leader>kt :FindTodos<CR>
-
--- command! -bar -nargs=0 FindComments call FindComments()
--- function! FindComments() abort
---   let queryForVscode = '.*(?:\/\/|#|/\*|\*/).*'
---   let queryForVim = '\v(\/\/|#|/\*|\*/)'
---   let @/ = queryForVim
---   call VSCodeNotify('workbench.action.findInFiles', {
---         \ 'query': queryForVscode,
---         \ 'isRegex': v:true
---         \ })
--- endfunction
--- nnoremap <leader>kco :FindComments<CR>
-
--- " ******************************************** text-manipulation-- **************************************
--- " ****** combinefiles chatgpt extension ****
--- " find lines with more that 4 asterisks/astrix
--- " good example of matching whole line with regex
--- nnoremap <leader>wv /.*\*\{4,\}.*/<CR>
--- vnoremap <leader>wv /.*\*\{4,\}.*/<CR>
-
--- " find text Included Files, then move one line down ,
--- " cut from current line to bottom or page , then close tab
---   nnoremap <leader>wf /Included Files<CR>jdG:call VSCodeNotify('workbench.action.closeActiveEditor')<CR>
-
--- " find included files text, then paste in below
--- nnoremap <leader>wg  /Included Files<CR>}kVp
--- vnoremap <leader>wg  /Included Files<CR>}kVp
--- " ******  end combinefiles chatgpt extension ****
-
--- " console.log normal mode stringify
--- function! StringifyConsoleLogWordNormal()
---   let l:selectedText = expand("<cword>")
---   let l:logStatement = "console.log('\\n" . l:selectedText . ": ', JSON.stringify(" . l:selectedText . ", null, 2))"
---   let @+ = l:logStatement
---   execute "normal! o"
---   execute "normal! \"+p"
---   " delete/cut console.log line for pasting elsewhere as new line
---   execute "normal! dd"
---   execute "normal! k"
--- endfunction
--- nnoremap <leader>j :call StringifyConsoleLogWordNormal()<CR>
---
--- " aws logger.info normal mode stringify
--- function! StringifyLoggerInfoWordNormal()
---   let l:selectedText = expand("<cword>")
---   let l:logStatement = "logger.info(`" . l:selectedText . ": ${JSON.stringify(" . l:selectedText . ", null, 2)}`)"
---   let @+ = l:logStatement
---   execute "normal! o"
---   execute "normal! \"+p"
---   " delete/cut logger.info line for pasting elsewhere as new line
---   execute "normal! dd"
---   execute "normal! k"
--- endfunction
--- nnoremap <leader>lj :call StringifyLoggerInfoWordNormal()<CR>
-
--- " console.log visual mode stringify
--- function! StringifyConsoleLogVisual() range
---   let l:line1 = line("'<")
---   let l:line2 = line("'>")
---   let l:col1 = col("'<")
---   let l:col2 = col("'>")
---   " // QUESTION: whats this do? whats the \n for?
---   let l:selectedText = join(getline(l:line1, l:line2), "\n")
---   if l:line1 == l:line2
---     let l:selectedText = strpart(l:selectedText, l:col1 - 1, l:col2 - l:col1 + 1)
---   endif
---   let l:logStatement = "console.log('\\n" . l:selectedText . ": ', JSON.stringify(" . l:selectedText . ", null, 2))"
---   let @+ = l:logStatement
---   execute "normal! o"
---   execute "normal! \"+p"
---   execute "normal! dd"
---   execute "normal! k"
--- endfunction
--- vnoremap <leader>j :call StringifyConsoleLogVisual()<CR>
-
--- " aws logger.info visual mode stringify
--- function! StringifyLoggerInfoVisual() range
---   let l:line1 = line("'<")
---   let l:line2 = line("'>")
---   let l:col1 = col("'<")
---   let l:col2 = col("'>")
---   let l:selectedText = join(getline(l:line1, l:line2), "\n")
---   if l:line1 == l:line2
---     let l:selectedText = strpart(l:selectedText, l:col1 - 1, l:col2 - l:col1 + 1)
---   endif
---   let l:logStatement = "logger.info(`" . l:selectedText . ": ${JSON.stringify(" . l:selectedText . ", null, 2)}`)"
---   let @+ = l:logStatement
---   execute "normal! o"
---   execute "normal! \"+p"
---   execute "normal! dd"
---   execute "normal! k"
--- endfunction
--- vnoremap <leader>lj :call StringifyLoggerInfoVisual()<CR>
-
--- " console.log visual mode
--- function! ConsoleLogVisual() range
---   " Get the visually selected text "
---   let l:line1 = line("'<")
---   let l:line2 = line("'>")
---   let l:col1 = col("'<")
---   let l:col2 = col("'>") + 1 " Add 1 to include the last character
---   " // QUESTION: whats this do?
---   let l:selectedText = join(getline(l:line1, l:line2), "\n")
---   if l:line1 == l:line2
---     let l:selectedText = strpart(l:selectedText, l:col1 - 1, l:col2 - l:col1)
---   endif
---   let l:logStatement = "console.log('\\n" . l:selectedText . ": ', " . l:selectedText . ")"
---   let @+ = l:logStatement
---   execute "normal! o"
---   execute "normal! \"+p"
---   execute "normal! dd"
---   execute "normal! k"
--- endfunction
--- vnoremap <leader>c :call ConsoleLogVisual()<CR>
-
--- " aws logger.info visual mode
--- function! LoggerInfoVisual() range
---   " Get the visually selected text "
---   let l:line1 = line("'<")
---   let l:line2 = line("'>")
---   let l:col1 = col("'<")
---   let l:col2 = col("'>") + 1 " Add 1 to include the last character
---   let l:selectedText = join(getline(l:line1, l:line2), "\n")
---   if l:line1 == l:line2
---     let l:selectedText = strpart(l:selectedText, l:col1 - 1, l:col2 - l:col1)
---   endif
---   let l:logStatement = "logger.info(`" . l:selectedText . ": ${" .  l:selectedText . "}`)"
---   let @+ = l:logStatement
---   execute "normal! o"
---   execute "normal! \"+p"
---   execute "normal! dd"
---   execute "normal! k"
--- endfunction
--- vnoremap <leader>lc :call LoggerInfoVisual()<CR>
---
--- " console.log normal mode current word
--- function! ConsoleLogNormal()
---   let l:variable = expand("<cword>")
---   let l:logStatement = "console.log('\\n" . l:variable . ": ', " . l:variable . ")"
---   let @+ = l:logStatement
---   execute "normal! o"
---   execute "normal! \"+p"
---   execute "normal! dd"
---   execute "normal! k"
--- endfunction
--- nnoremap <leader>c :call ConsoleLogNormal()<CR>
-
--- " aws logger.info normal mode current word
--- function! LoggerInfoNormal()
---   let l:selectedText = expand("<cword>")
---   let l:logStatement = "logger.info(`" . l:selectedText . ": ${" .  l:selectedText . "}`)"
---   let @+ = l:logStatement
---   execute "normal! o"
---   execute "normal! \"+p"
---   execute "normal! dd"
---   execute "normal! k"
--- endfunction
--- nnoremap <leader>lc :call LoggerInfoNormal()<CR>
-
--- function! ConsoleLogHereNormal()
---   let l:variable = expand("<cword>")
---   let l:logStatement = "console.log('\\n****** " . l:variable . " **\\n')"
---   let @+ = l:logStatement
---   execute "normal! o"
---   execute "normal! \"+p"
---   execute "normal! dd"
---   execute "normal! k"
--- endfunction
--- nnoremap <leader><leader>c :call ConsoleLogHereNormal()<CR>
-
--- " QUESTION:  not sure what this is suppoed to do. seems to copy first line of visual selection
--- function! ConsoleLogHereVisual() range
---   let l:variableFirstLine = getline(a:firstline, a:lastline)
---   let l:logStatement = "console.log('\\n***** " . join(l:variableFirstLine, ' ') . " **\\n')"
---   let @+ = l:logStatement
---   execute "normal! o"
---   execute "normal! \"+p"
---   execute "normal! dd"
---   execute "normal! k"
--- endfunction
--- vnoremap <leader><leader>c :<C-u>call ConsoleLogHereVisual()<CR>
-
--- "  function remove all vim comments from a file
--- function! DeleteComments()
---     " Delete all comments from the current file
---     execute 'g/^\s*".*/d'
--- endfunction
--- command! DeleteComments call DeleteComments()
--- " nnoremap <leader>removecomments :call DeleteComments()<CR>
-
--- " ****************************** not used much ***************
--- vim.keymap.set('n', 'gbp', 'gg)', {desc: '[G]o to in [B]uffer: [I]mports (top paragraph)'})
-
---   "  TODO: make this work
--- function! OpenEnvFileAndRunMapping()
---     execute 'edit local/example.env'
---     " Go to the bottom of the file
---     " normal G
---   " Go to the last line of the file
---     execute '$'
---     " Run the provided Vim sequence
---     " normal vippgv:norm df<Space><CR>
---     normal! Gvippgv:norm df<Space><CR>
---     " normal! vippgv
---     " normal! df<Space><CR>
--- endfunction
--- nnoremap <leader>vd :call OpenEnvFileAndRunMapping()<CR>
-
--- " removes any lines that contain a ""
--- function! EdiClean()
---     " Delete all lines that contain empty quotes
---     execute 'g/""/d'
---     " remove all ? symbols
---     execute '%s/?//g'
---     "  TODO:  remove all spaces tht are inside quotes (only the first pair of quotes)
---     " execute '%s/\v"([^"]*)"/\=substitute(submatch(0), " ", "", "g")/g'
--- endfunction
--- command! EdiClean call EdiClean()
+-- Inactive keymap and plugin experiments were moved to
+-- docs/2026-07-28-keymap-experiments-parking-lot.md so this file stays focused
+-- on active behavior.
 
 -- vim: ts=2 sts=2 sw=2 et

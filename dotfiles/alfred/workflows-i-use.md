@@ -2,9 +2,9 @@
 
 A showcase of the Alfred workflows that power my productivity. Feel free to explore and discover new workflows!
 
-Last updated: 2026-06-26 20:33:21
+Last updated: 2026-11-10 11:39:17
 
-Total workflows: 111
+Total workflows: 113
 
 > **Note**: This is a showcase list only. Actual workflow files are not included for security reasons (may contain API keys). Find these workflows on [Alfred Gallery](https://alfred.app/workflows/), [Packal](http://www.packal.org/), or GitHub.
 
@@ -26,6 +26,7 @@ Total workflows: 111
 | ChatGPT / DALL-E | com.alfredapp.vitor.openai | OpenAI integrations | 2025.4 |
 | Window Navigator | com.zeitlings.windownavigator | Navigate to any window of the currently focused app or any app across all desktops, or switch windows within the current desktop space. | 2.1.0 |
 | Homebrew | de.chris-grieser.homebrew | Search, install, or uninstall homebrew packages conveniently | 2.1.0 |
+| Shimmering Obsidian | de.chris-grieser.shimmering-obsidian | An Alfred Workflow with dozens of features for Obsidian | 4.14.0 |
 | Open macOS Settings Panes | app.alfred.stephenc.venturaprefpanes | Opens listed Settings Pane | 3.5 |
 | Share with AirDrop | com.alfredapp.vitor.sharewithairdrop | Share files, text, and URLs via AirDrop | 2025.1 |
 | Menu Bar Search | com.folded-paper.menu-bar-search | Search through menu options for front-most application | 2.0 |
@@ -43,6 +44,7 @@ Total workflows: 111
 | Weather | com.jason0x43.alfred-weather | Weather forecasts at your fingertips | 1.7.1 |
 | Alfred Maestro | iansinnott.keyboardmaestro | Search Keyboard Maestro Macros | 0.2.2 |
 | Right Click | com.vitorgalvao.alfred.rightclick | Trigger a right-click on Finder files, with the keyboard | 2024.1 |
+| launch nvim in tmux in ghostty |  |  |  |
 | Bear | com.drgrib.bear | Streamlined note searching and creation for Bear using Alfred | 1.2.1 |
 | Tmux Sessions | com.jsatti.tmux-sessions | Quickly open tmux sessions. A powerful Alfred workflow for complete tmux session management with create, attach, detach, and delete functionality. | 2.1.0 |
 | alfred remote keyboard maestro workaround | com.ev.alfredremote | to allow triggering keyboard maestro macros from alfred remote |  |

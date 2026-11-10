@@ -10,8 +10,7 @@
 # * Result: If Gemini tries to balloon to 41GB again, the OS will simply kill it (Crash) instead of
 # letting it freeze your Mac.
 
-# macOS default file descriptor limit is 256 — far too low for Neovim + LSPs + plugins.
-# Raised to 4096 to fix EMFILE errors when avante.nvim tries to spawn curl on startup.
+# Raise the open-file limit for Neovim, LSPs, and dev tools.
 ulimit -n 4096
 
 alias cleanup="~/scripts/gemini-cleanup"
@@ -33,6 +32,14 @@ ZSH_THEME="evan_robbyrussell_theme"
 # Custom plugins may be added to $ZSH_CUSTOM/plugins/
 # Add wisely, as too many plugins slow down shell startup.
 plugins=(git npm macos aliases zsh-autosuggestions zsh-syntax-highlighting fzf colored-man-pages tldr)
+
+# Skip oh-my-zsh's completion-directory security audit (~40-155ms of compaudit
+# calls). Verified clean with `autoload -U compaudit; compaudit` (no output).
+ZSH_DISABLE_COMPFIX=true
+
+# Disable the update prompt. This MUST be set before oh-my-zsh is sourced;
+# it used to live further down the file, where it had no effect at all.
+DISABLE_UPDATE_PROMPT=true
 
 # Source Oh My Zsh configuration.
 # This loads all the standard oh-my-zsh functionality, including plugins, themes, and other configurations.
@@ -81,7 +88,8 @@ bindkey '\ez' self-insert-unmeta
 # source $ZSH/plugins/git/git.plugin.zsh
 # source $ZSH_CUSTOM/plugins/zsh-autosuggestions/zsh-autosuggestions.plugin.zsh
 # source $ZSH/plugins/npm/npm.plugin.zsh
-source $HOME/.zshenv
+# (~/.zshenv is sourced automatically by zsh for every shell before this file
+# runs, so re-sourcing it here was redundant and has been removed.)
 # [ -f ~/.config/.zshenv.local ] && source ~/.config/.zshenv.local
 
 #  NOTE:  which aliases.zsh file should i source? # Source your custom aliases.
@@ -115,8 +123,19 @@ source $ZSH_CUSTOM/aliases.zsh
 # precmd_functions+=(osc133_precmd osc133_precmd_end)
 # preexec_functions+=(osc133_preexec)
 
-# python env pyenv setup
-eval "$(pyenv init -)"
+# python env pyenv setup.
+# PYENV_ROOT / PYENV_SHELL / the shims PATH entry are set statically in
+# .zprofile, so python, pip and the other 65 shims already work here.
+# `pyenv init -` only adds completions and the `pyenv shell` builtin, and it
+# costs ~90-150ms (it spawns a nested bash plus `pyenv rehash` every startup),
+# so load it on first use instead.
+# Note: rehash no longer runs automatically. After a pip install that adds a
+# new console script, run `pyenv rehash` once.
+pyenv() {
+  unfunction pyenv
+  eval "$(command pyenv init - zsh)"
+  pyenv "$@"
+}
 
 # Initialize zoxide  and map to key j (must come after oh-my-zsh)
 eval "$(zoxide init zsh --cmd j)"
@@ -173,7 +192,11 @@ else
   export EDITOR='nvim'
 fi
 
-export DISABLE_UPDATE_PROMPT=true
+export VISUAL="$EDITOR"
+export GIT_EDITOR="$EDITOR"
+
+# (DISABLE_UPDATE_PROMPT moved above the oh-my-zsh source line; setting it
+# here was dead code, since oh-my-zsh had already read it 150 lines earlier.)
 
 # Compilation flags
 # export ARCHFLAGS="-arch x86_64"
@@ -184,8 +207,31 @@ export DISABLE_UPDATE_PROMPT=true
 # For a full list of active aliases, run `alias`.
 
 export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+
+# Put the default Node on PATH directly rather than sourcing nvm.sh.
+# Sourcing it costs ~790ms, because nvm.sh ends by running `nvm use default`
+# (resolve the `stable` alias, scan versions on disk, validate, rewrite PATH)
+# on every single shell.
+#
+# This is a static PATH entry rather than a node/npm/npx shim function on
+# purpose: Homebrew has node v26 on PATH, so if nvm's bin dir were absent
+# until a shim fired, any script resolving `node` straight from PATH would
+# silently get v26 instead of v24. Pinning the directory keeps v24 the real
+# answer for everything, exactly as before.
+#
+# Update this path after changing the default with `nvm alias default`.
+path=("$NVM_DIR/versions/node/v24.13.0/bin" $path)
+
+# Load nvm itself only when it is actually invoked. Sourcing bash_completion
+# here rather than at startup also removes a second, redundant `compinit`
+# (it called compinit with no -d, targeting ~/.zcompdump instead of
+# oh-my-zsh's dump, rebuilding the same 1757-entry table twice per shell).
+nvm() {
+  unfunction nvm
+  [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+  [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+  nvm "$@"
+}
 
 # fzf handles CTRL+R (fuzzy history search) via the fzf plugin — don't override it here
 # bindkey "^R" history-incremental-search-backward
@@ -195,36 +241,16 @@ export NVM_DIR="$HOME/.nvm"
 # bindkey '^ ' autosuggest-accept
 bindkey '\e;' autosuggest-accept
 
-# TODO: i think this should also scan bin/ directories in `$HOME/scripts/*`
-# Auto-sync all executable scripts to ~/.local/bin for global access.
-# Scans both ~/scripts and ~/Projects/*/bin directories.
-_sync_scripts() {
-  local bin_dir="$HOME/.local/bin"
-  find "$HOME/scripts" "$HOME/Projects"/*/bin -type f -perm +111 \
-    -not -path '*/node_modules/*' \
-    -not -path '*/venv/*' \
-    -not -path '*/.venv/*' \
-    -not -path '*/archive/*' \
-    -not -path '*/.git/*' -exec sh -c '
-    bin_dir="$1"
-    shift
-    for script in "$@"; do
-      name=$(basename "$script" | sed "s/\.[^.]*$//")
-      ln -sf "$script" "$bin_dir/$name" 2>/dev/null
-    done
-  ' _ "$bin_dir" {} + 2>/dev/null
-}
-_sync_scripts
-
 if [[ $(hostname) = "YOUR-HOSTNAME.local" ]]; then
 	# Add TeX binaries to PATH
 	export PATH="/Library/TeX/texbin:$PATH"
 	# Add OrbStack binaries to PATH (for docker, docker-compose, kubectl)
 	export PATH="$HOME/.orbstack/bin:$PATH"
-	# ~/.local/bin contains auto-synced script symlinks (see _sync_scripts above)
+	# ~/.local/bin contains script symlinks managed by ~/scripts/sync-scripts.
 	export PATH="$HOME/.local/bin:$PATH"
 	export TMUX_CONF="$HOME/.config/tmux/tmux.conf"
 	# export XDG_CONFIG_HOME="$HOME/.config"
+	export LG_CONFIG_FILE="$HOME/.config/lazygit/config.yml"
 fi
 
 # examples and ideas:
@@ -244,9 +270,11 @@ unalias gh 2>/dev/null
 export BUN_INSTALL="$HOME/.bun"
 export PATH="$BUN_INSTALL/bin:$PATH"
 
-# Deduplicate PATH (Optional). Uncomment if duplicate paths persist.
-# export PATH=$(perl -e 'print join(":", grep { !$seen{$_}++ } split(/:/, $ENV{PATH}))')
+# PATH is deduplicated by `typeset -gU path fpath PATH FPATH` in ~/.zshenv.
+
+# (The Antigravity CLI installer appended another "$HOME/.local/bin" PATH
+# export here. It was the third copy - .zprofile and the block above already
+# add it - so it has been removed.)
 
 
-# Added by Antigravity CLI installer
-export PATH="$HOME/.local/bin:$PATH"
+

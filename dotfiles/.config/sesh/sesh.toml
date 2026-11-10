@@ -1,0 +1,10 @@
+blacklist = ["floax-floating-window-session-name"]
+
+
+[[session]]
+name = "Downloads"
+path = "~/Downloads"
+
+[[session]]
+name = "Desktop"
+path = "~/Desktop"

@@ -1,43 +1,39 @@
+local function format_and_write()
+  require('conform').format {
+    async = false,
+    lsp_format = 'fallback',
+  }
+  vim.cmd 'silent! write'
+end
+
 return {
   { -- Autoformat
     'stevearc/conform.nvim',
-    event = { 'BufWritePre' },
-      cmd = { 'ConformInfo' },
+    cmd = { 'ConformInfo' },
     keys = {
       {
-        '<leader>j',
-        function()
-          require('conform').format {
-            async = false,
-            lsp_format = 'fallback',
-          }
-          vim.cmd 'silent! write'
-        end,
-        mode = '',
-        desc = '[F][O]rmat and write buffer',
+        '<leader>h',
+        format_and_write,
+        mode = 'n',
+        desc = 'Format and write buffer',
+      },
+      {
+        'M',
+        format_and_write,
+        mode = 'n',
+        desc = 'Format and write buffer',
       },
     },
     opts = {
       notify_on_error = false,
-      format_on_save = function(bufnr)
-        -- Disable "format_on_save lsp_fallback" for languages that don't
-        -- have a well standardized coding style. You can add additional
-        -- languages here or re-enable it for the disabled ones.
-        local disable_filetypes = { c = true, cpp = true, make = true }
-        if disable_filetypes[vim.bo[bufnr].filetype] then
-          return nil
-        else
-          return {
-            timeout_ms = 500,
-            lsp_format = 'fallback',
-          }
-        end
-      end,
+      -- No format_on_save: saving never reformats. Formatting stays explicit,
+      -- Other mappings write without changing the buffer.
       formatters_by_ft = {
         lua = { 'stylua' },
         json = { 'prettier' },
         clojure = { 'cljfmt' },
         toml = { 'taplo' },
+        markdown = { 'markdownlint' },
         -- TODO: this might be causing problems with some files
         -- ['*'] = { 'trim_whitespace' },
 

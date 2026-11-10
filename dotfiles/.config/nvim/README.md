@@ -1,272 +1,170 @@
-# nvim-kickstart
+# Neovim Configuration
 
-## example configs from other ppl
-https://github.com/codingjerk/dotfiles/blob/main/config/nvim/init.lua
+Personal Neovim configuration based on [kickstart.nvim](https://github.com/nvim-lua/kickstart.nvim), organized as a modular Lua configuration.
 
-## Introduction
+## Source of Truth
 
-*This is a fork of [nvim-lua/kickstart.nvim](https://github.com/nvim-lua/kickstart.nvim) that moves from a single file to a multi file configuration.*
+- Entry point: [`init.lua`](./init.lua)
+- Options: [`lua/options.lua`](./lua/options.lua)
+- Keymaps: [`lua/keyremaps.lua`](./lua/keyremaps.lua)
+- Plugin specifications: [`lua/kickstart/plugins/`](./lua/kickstart/plugins/)
+- Decisions and implementation notes: [`docs/`](./docs/)
 
-A starting point for Neovim that is:
-* Small
-* Modular
-* Completely Documented
+Keybindings are not duplicated here.
+The `desc` field on each mapping is the source of truth, surfaced by which-key, `:map`, and `:Telescope keymaps`.
+Placement rationale lives in [the keybinding design principles](./docs/2026-07-28-keybinding-design-principles.md).
 
-**NOT** a Neovim distribution, but instead a starting point for your configuration.
+## Requirements
 
-## AI tooling
+Required command-line tools:
 
-- `avante.nvim` is currently disabled rather than running through GitHub Copilot.
-- Avante sidebar output is configured to wrap long lines for readability, and the general wrap-control autocmd explicitly treats `Avante` buffers like markdown/text so that local no-wrap defaults do not override it.
-- Core Avante mappings:
-  - `<leader>vv` ask/open
-  - `<leader>ve` edit selection
-  - `<leader>vt` toggle sidebar
-  - `<leader>vf` focus sidebar
-  - `<leader>vn` new chat
-  - `<leader>vh` history
-  - `<leader>vm` model picker
-  - `<leader>vk` stop request
-  - `<leader>vc` add current buffer as context
-- Avante submit is mapped to `<C-CR>` in both normal and insert mode.
+- `git`, used to bootstrap and install plugins.
+- `ripgrep`, used by Telescope for content searches.
+- `fd`, used by Telescope for file discovery.
+- `make` and a C compiler, used to build `telescope-fzf-native`.
+- A Nerd Font, because `vim.g.have_nerd_font` is enabled.
 
-## Installation
+Language servers, formatters, and linters are installed through Mason.
+The configured tool list lives in [`lua/kickstart/plugins/lspconfig.lua`](./lua/kickstart/plugins/lspconfig.lua).
 
-### Install Neovim
+## Plugin Organization
 
-Kickstart.nvim targets *only* the latest
-['stable'](https://github.com/neovim/neovim/releases/tag/stable) and latest
-['nightly'](https://github.com/neovim/neovim/releases/tag/nightly) of Neovim.
-If you are experiencing issues, please make sure you have the latest versions.
+- [`lua/lazy-bootstrap.lua`](./lua/lazy-bootstrap.lua) installs and prepends `lazy.nvim`.
+- [`lua/lazy-plugins.lua`](./lua/lazy-plugins.lua) configures lazy.nvim and registers the plugin specs.
+- [`lua/kickstart/plugins/`](./lua/kickstart/plugins/) contains the main plugin specifications.
+- [`lua/custom/plugins/`](./lua/custom/plugins/) contains personal extensions and is auto-imported by lazy.nvim.
+- [`lazy-lock.json`](./lazy-lock.json) records the exact plugin revisions.
 
-### Install External Dependencies
+Most plugin specs return a table containing the repository, loading conditions, dependencies, and configuration.
 
-External Requirements:
-- Basic utils: `git`, `make`, `unzip`, C Compiler (`gcc`)
-- [ripgrep](https://github.com/BurntSushi/ripgrep#installation),
-  [fd-find](https://github.com/sharkdp/fd#installation)
-- Clipboard tool (xclip/xsel/win32yank or other depending on the platform)
-- A [Nerd Font](https://www.nerdfonts.com/): optional, provides various icons
-  - if you have it set `vim.g.have_nerd_font` in `init.lua` to true
-- Emoji fonts (Ubuntu only, and only if you want emoji!) `sudo apt install fonts-noto-color-emoji`
-- Language Setup:
-  - If you want to write Typescript, you need `npm`
-  - If you want to write Golang, you will need `go`
-  - etc.
+## Adding A Plugin
 
-> [!NOTE]
-> See [Install Recipes](#Install-Recipes) for additional Windows and Linux specific notes
-> and quick install snippets
-
-### Install Kickstart
-
-> [!NOTE]
-> [Backup](#FAQ) your previous configuration (if any exists)
-
-Neovim's configurations are located under the following paths, depending on your OS:
-
-| OS | PATH |
-| :- | :--- |
-| Linux, MacOS | `$XDG_CONFIG_HOME/nvim`, `~/.config/nvim` |
-| Windows (cmd)| `%localappdata%\nvim\` |
-| Windows (powershell)| `$env:LOCALAPPDATA\nvim\` |
-
-#### Recommended Step
-
-[Fork](https://docs.github.com/en/get-started/quickstart/fork-a-repo) this repo
-so that you have your own copy that you can modify, then install by cloning the
-fork to your machine using one of the commands below, depending on your OS.
-
-> [!NOTE]
-> Your fork's URL will be something like this:
-> `https://github.com/<your_github_username>/kickstart-modular.nvim.git`
-
-You likely want to remove `lazy-lock.json` from your fork's `.gitignore` file
-too - it's ignored in the kickstart repo to make maintenance easier, but it's
-[recommended to track it in version control](https://lazy.folke.io/usage/lockfile).
-
-#### Clone kickstart.nvim
-
-> [!NOTE]
-> If following the recommended step above (i.e., forking the repo), replace
-> `dam9000` with `<your_github_username>` in the commands below
-
-<details><summary> Linux and Mac </summary>
-
-```sh
-git clone https://github.com/dam9000/kickstart-modular.nvim.git "${XDG_CONFIG_HOME:-$HOME/.config}"/nvim
-```
-
-</details>
-
-<details><summary> Windows </summary>
-
-If you're using `cmd.exe`:
-
-```
-git clone https://github.com/dam9000/kickstart-modular.nvim.git "%localappdata%\nvim"
-```
-
-If you're using `powershell.exe`
-
-```
-git clone https://github.com/dam9000/kickstart-modular.nvim.git "${env:LOCALAPPDATA}\nvim"
-```
-
-</details>
-
-### Post Installation
-
-Start Neovim
-
-```sh
-nvim
-```
-
-That's it! Lazy will install all the plugins you have. Use `:Lazy` to view
-the current plugin status. Hit `q` to close the window.
-
-#### Read The Friendly Documentation
-
-Read through the `init.lua` file in your configuration folder for more
-information about extending and exploring Neovim. That also includes
-examples of adding popularly requested plugins.
-
-> [!NOTE]
-> For more information about a particular plugin check its repository's documentation.
-
-
-### Getting Started
-
-[The Only Video You Need to Get Started with Neovim](https://youtu.be/m8C0Cq9Uv9o)
-
-### Improved Undotree Diff Panel Readability
-
-The Undotree plugin now applies stronger diff highlighting so its diff panel is easier to scan:
-- **Added lines** use a higher-contrast green highlight.
-- **Deleted lines** use a higher-contrast red highlight.
-- **Changed lines** use a warmer amber highlight.
-
-These highlights are re-applied after colorscheme changes so the Undotree diff panel stays readable when the theme reloads. Use `<leader>u` to toggle the Undotree panel.
-
-### FAQ
-
-* What should I do if I already have a pre-existing Neovim configuration?
-  * You should back it up and then delete all associated files.
-  * This includes your existing init.lua and the Neovim files in `~/.local`
-    which can be deleted with `rm -rf ~/.local/share/nvim/`
-* Can I keep my existing configuration in parallel to kickstart?
-  * Yes! You can use [NVIM_APPNAME](https://neovim.io/doc/user/starting.html#%24NVIM_APPNAME)`=nvim-NAME`
-    to maintain multiple configurations. For example, you can install the kickstart
-    configuration in `~/.config/nvim-kickstart` and create an alias:
-    ```
-    alias nvim-kickstart='NVIM_APPNAME="nvim-kickstart" nvim'
-    ```
-    When you run Neovim using `nvim-kickstart` alias it will use the alternative
-    config directory and the matching local directory
-    `~/.local/share/nvim-kickstart`. You can apply this approach to any Neovim
-    distribution that you would like to try out.
-* What if I want to "uninstall" this configuration:
-  * See [lazy.nvim uninstall](https://lazy.folke.io/usage#-uninstalling) information
-* Why is the kickstart `init.lua` a single file? Wouldn't it make sense to split it into multiple files?
-  * The main purpose of kickstart is to serve as a teaching tool and a reference
-    configuration that someone can easily use to `git clone` as a basis for their own.
-    As you progress in learning Neovim and Lua, you might consider splitting `init.lua`
-    into smaller parts. A fork of kickstart that does this while maintaining the
-    same functionality is available here:
-    * [kickstart-modular.nvim](https://github.com/dam9000/kickstart-modular.nvim)
-  * *NOTE: This is the fork that splits the configuration into smaller parts.*
-    The original repo with the single `init.lua` file is available here:
-    * [kickstart.nvim](https://github.com/nvim-lua/kickstart.nvim)
-  * Discussions on this topic can be found here:
-    * [Restructure the configuration](https://github.com/nvim-lua/kickstart.nvim/issues/218)
-    * [Reorganize init.lua into a multi-file setup](https://github.com/nvim-lua/kickstart.nvim/pull/473)
-
-### Install Recipes
-
-Below you can find OS specific install instructions for Neovim and dependencies.
-
-After installing all the dependencies continue with the [Install Kickstart](#Install-Kickstart) step.
-
-#### Windows Installation
-
-<details><summary>Windows with Microsoft C++ Build Tools and CMake</summary>
-Installation may require installing build tools and updating the run command for `telescope-fzf-native`
-
-See `telescope-fzf-native` documentation for [more details](https://github.com/nvim-telescope/telescope-fzf-native.nvim#installation)
-
-This requires:
-
-- Install CMake and the Microsoft C++ Build Tools on Windows
+For a personal plugin, create `lua/custom/plugins/name.lua`:
 
 ```lua
-{'nvim-telescope/telescope-fzf-native.nvim', build = 'cmake -S. -Bbuild -DCMAKE_BUILD_TYPE=Release && cmake --build build --config Release && cmake --install build --prefix build' }
-```
-</details>
-<details><summary>Windows with gcc/make using chocolatey</summary>
-Alternatively, one can install gcc and make which don't require changing the config,
-the easiest way is to use choco:
-
-1. install [chocolatey](https://chocolatey.org/install)
-either follow the instructions on the page or use winget,
-run in cmd as **admin**:
-```
-winget install --accept-source-agreements chocolatey.chocolatey
+return {
+  {
+    'owner/plugin-name',
+    event = 'VeryLazy',
+    opts = {},
+  },
+}
 ```
 
-2. install all requirements using choco, exit the previous cmd and
-open a new one so that choco path is set, and run in cmd as **admin**:
-```
-choco install -y neovim git ripgrep wget fd unzip gzip mingw make
-```
-</details>
-<details><summary>WSL (Windows Subsystem for Linux)</summary>
+The `lua/custom/plugins/` directory is already imported by `lua/lazy-plugins.lua`, so no additional `require` is needed.
 
-```
-wsl --install
-wsl
-sudo add-apt-repository ppa:neovim-ppa/unstable -y
-sudo apt update
-sudo apt install make gcc ripgrep unzip git xclip neovim
-```
-</details>
+For a plugin under `lua/kickstart/plugins/`, create the spec there and add `require 'kickstart.plugins.name'` to `lua/lazy-plugins.lua`.
 
-#### Linux Install
-<details><summary>Ubuntu Install Steps</summary>
+Use `:Lazy` to inspect plugin status and `:Lazy sync` after changing plugin specs.
 
-```
-sudo add-apt-repository ppa:neovim-ppa/unstable -y
-sudo apt update
-sudo apt install make gcc ripgrep unzip git xclip neovim
-```
-</details>
-<details><summary>Debian Install Steps</summary>
+## Current Behavior
 
-```
-sudo apt update
-sudo apt install make gcc ripgrep unzip git xclip curl
+### Saving
 
-# Now we install nvim
-curl -LO https://github.com/neovim/neovim/releases/latest/download/nvim-linux-x86_64.tar.gz
-sudo rm -rf /opt/nvim-linux-x86_64
-sudo mkdir -p /opt/nvim-linux-x86_64
-sudo chmod a+rX /opt/nvim-linux-x86_64
-sudo tar -C /opt -xzf nvim-linux-x86_64.tar.gz
+- There is no autosave.
+- Format-on-save is disabled, so plain saves never reformat buffers.
+- Unsaved buffers show a red `● UNSAVED` marker beside their path, including in inactive windows.
+- Buffers without local edits automatically reload when the file changes on disk.
+- Buffers with unsaved edits show Vim's standard W12 warning.
+- Oil saves buffers changed by an LSP file operation only when they were unmodified before that operation.
 
-# make it available in /usr/local/bin, distro installs to /usr/bin
-sudo ln -sf /opt/nvim-linux-x86_64/bin/nvim /usr/local/bin/
-```
-</details>
-<details><summary>Fedora Install Steps</summary>
+See [the autosave retirement note](./docs/2026-07-11-retire-autosave-external-file-guard.md).
+For Markdown opening and Oil preview troubleshooting, see [the picker and preview note](./docs/2026-09-18-obsidian-picker-and-oil-preview.md).
 
-```
-sudo dnf install -y gcc make git ripgrep fd-find unzip neovim
-```
-</details>
+### Cursor
 
-<details><summary>Arch Install Steps</summary>
+The cursor blinks only in Insert mode, with an 800 ms delay before blinking and 700 ms visible and hidden intervals.
+Insert mode uses Neovim's default vertical-line cursor, while other modes retain their default cursor shapes without blinking.
 
-```
-sudo pacman -S --noconfirm --needed gcc make git ripgrep fd unzip neovim
-```
-</details>
+### Statusline
+
+Each window has its own statusline.
+The filename uses an absolute path with `~` for the home directory, shortens intermediate directories as the window narrows, and eventually drops leading path segments while preserving the filename and unsaved marker.
+Inactive splits reserve only the space needed by their location component, so they can show more of the path than active splits at the same width.
+The focused split uses lavender separators and a contrasting background: `crust` against inactive `surface0` in dark mode, or near-white `base` against gray `surface1` in light mode.
+Only the focused split shows its cursor line, and light mode overrides that cursor line to `surface0` so it stays visible against the near-white active background.
+Floating windows are excluded from the focus treatment and theme themselves, so Telescope and Harpoon keep their own colors.
+
+See [the statusline path decision note](./docs/2026-08-30-statusline-full-path-display.md).
+
+### Search and Clipboard
+
+- Yank mappings have copy and append variants.
+- Visual yanks include the file path and line range as context.
+- Visual search returns to Normal mode so `n` and `N` navigate the matches.
+- `n` and `N` always follow the latest `/` or `?` search.
+- `:Rename`, `:CopyFileName`, and `:CopyParentDirectory` provide file and path utilities.
+
+See [the yank and search note](./docs/2026-07-08-visual-yank-and-search-keymaps.md) and [the search navigation note](./docs/2026-07-13-latest-search-owns-n-navigation.md).
+
+### Telescope and Obsidian
+
+Retrieval mappings are action-first:
+
+- `<leader>f…` finds files by name.
+- `<leader>s…` searches file contents.
+- `<leader>o…` handles Obsidian-aware note operations.
+
+File searches skip gitignored files.
+In the general file pickers, `<M-i>` reruns the search with them included, still skipping dependency and cache folders such as `node_modules`, and pressing it again switches back.
+
+The current launch directory supplies Neovim's initial root, and sessions
+restore layouts without saving directory changes while the `curdir` omission
+is being tried.
+Telescope's project searches follow the effective cwd, while its local
+searches use the current file or Oil directory.
+See [the cwd and session policy](./docs/2026-09-23-neovim-cwd-oil-telescope-session-policy.md).
+
+In Oil, `_` goes up one level, except at the root of a directory that the launch directory symlinks to, where it returns to the launch directory.
+`-` always opens the launch directory.
+See [the symlink hub note](./docs/2026-10-25-oil-parent-returns-to-symlink-hub.md).
+
+`<leader>ss` passes everything after a quoted pattern to ripgrep: `<C-k>` quotes the prompt, `<C-l>` also adds `-F` for literal text, and `<C-g>` and `<C-t>` add `--glob` and `-t`.
+Grep results can be appended to the global quickfix list while preserving the grep prompt as the active search highlight.
+`:QfToFile` saves the quickfix list to the launch directory as `YYYY_MM_DD-HHMMSS-quickfix.txt`, which `:cfile` reloads.
+The selected Telescope result uses a bold, lavender-caret row, and Harpoon opens as a centered, rounded menu at 90% of the editor width.
+
+See [the search naming convention](./docs/2026-07-13-telescope-obsidian-search-convention.md) and [the quickfix handoff note](./docs/2026-07-06-telescope-quickfix-append.md).
+`<leader>soc` opens a temporary menu of vault audits for the PK-14 standardization; see [the audit picker note](./docs/2026_11_03-vault-audit-picker.md).
+
+### Movement
+
+Vertical movement follows visible display lines, including wrapped Markdown.
+Line-boundary mappings follow logical source lines and target nonblank characters, while their `g`-prefixed variants reach display-line boundaries.
+Karabiner q-mode retains its character, word, and line navigation and deletion behavior while Neovim is in Insert mode.
+
+See [the wrapped-line navigation note](./docs/2026-08-01-wrapped-line-navigation.md) and [the line boundaries note](./docs/2026-09-05-line-boundaries-follow-logical-lines.md).
+
+### Prose Reading
+
+Markdown, text, and Avante buffers soft-wrap to the window width.
+`textwidth` remains `0`, so wrapping never inserts characters into the file, and there are no wrap toggles.
+
+Centering is manual and tab-scoped through No Neck Pain.
+It narrows wide panes to a fixed reading measure and treats the padding windows as Neovim's edge so `<C-h>` and `<C-l>` still reach adjacent tmux panes.
+
+See [the reading-measure note](./docs/2026-09-04-centered-markdown-reading-measure.md).
+
+### Windows
+
+All split, layout, and buffer-swap operations live under `<leader>w…`, mirroring tmux's `prefix w` namespace.
+Swapping preserves each buffer's cursor and scroll position.
+Zoom restores the prior split layout when toggled off.
+
+See [the buffer-swap note](./docs/2026-07-15-buffer-swap-preserves-view-and-focus.md) and [ADR 027: Align Neovim and tmux Window Operations](./docs/../../../docs/adrs/027-align-neovim-and-tmux-window-operations.md).
+Use `:map <leader>w` or `:Telescope keymaps` to browse all window operations.
+
+### Undotree
+
+Undotree uses stronger green, red, and amber diff highlights that are reapplied after colorscheme changes.
+Use `<leader>u` to toggle the panel.
+
+### AI Tooling
+
+`avante.nvim` is dormant.
+Its plugin specification remains in [`lua/kickstart/plugins/avante.lua`](./lua/kickstart/plugins/avante.lua) for reference, but it is not imported by [`lua/lazy-plugins.lua`](./lua/lazy-plugins.lua), so lazy.nvim does not register or load it.
+
+## Maintenance
+
+Keep this README focused on current behavior and navigation.
+When behavior changes, update the relevant summary here and put detailed rationale in a dated note under [`docs/`](./docs/).

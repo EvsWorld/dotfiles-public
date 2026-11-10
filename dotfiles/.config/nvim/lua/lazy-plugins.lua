@@ -59,9 +59,11 @@ require('lazy').setup({
   require 'kickstart.plugins.nvim-tmux-navigation',
   require 'kickstart.plugins.statusline',
   require 'kickstart.plugins.scrollview',
+  require 'kickstart.plugins.spider',
   require 'kickstart.plugins.obsidian',
   require 'kickstart.plugins.markdown-preview',
   require 'kickstart.plugins.render-markdown',
+  require 'kickstart.plugins.no-neck-pain',
   require 'kickstart.plugins.outline',
 
   -- require 'kickstart.plugins.indent_line',
@@ -69,13 +71,10 @@ require('lazy').setup({
   -- ************* Experiments ************
   require 'kickstart.plugins.lint',
 
-  require 'kickstart.plugins.auto-save', -- not working at all
   require 'kickstart.plugins.gemini',
-  require 'kickstart.plugins.avante',
   require 'kickstart.plugins.code-bridge',
   require 'kickstart.plugins.neo-tree',
   -- require 'kickstart.plugins.colorful-winsep', -- disabled: bottom border overlaps statusline
-  require 'kickstart.plugins.99',
 
   -- The following comments only work if you have downloaded the kickstart repo, not just copy pasted the
   -- init.lua. If you want these files, they are in the repository, so you can just download them and
@@ -94,7 +93,7 @@ require('lazy').setup({
   --    This is the easiest way to modularize your config.
   --
   --  Uncomment the following line and add your plugins to `lua/custom/plugins/*.lua` to get going.
-  -- { import = 'custom.plugins' },
+  { import = 'custom.plugins' },
   --
   -- For additional information with loading, sourcing and examples see `:help lazy.nvim-🔌-plugin-spec`
   -- Or use telescope!

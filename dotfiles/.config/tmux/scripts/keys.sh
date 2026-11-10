@@ -99,6 +99,21 @@ table_described() {
 # are pane swaps, and tmux's order is already right for them.
 order_by_target() {
   case "$1" in
+    window-ops)
+      awk -F'\t' '
+        { line[NR] = $0; key[NR] = tolower($2) }
+        END {
+          n = NR
+          for (i = 2; i <= n; i++) {
+            v = key[i]; t = line[i]; b = i - 1
+            while (b >= 1 && key[b] > v) { key[b+1] = key[b]; line[b+1] = line[b]; b-- }
+            key[b+1] = v; line[b+1] = t
+          }
+          for (i = 1; i <= n; i++) print line[i]
+        }
+      '
+      return
+      ;;
     prefix|window-ops-move|window-ops-reorder) ;;
     *) cat; return ;;
   esac

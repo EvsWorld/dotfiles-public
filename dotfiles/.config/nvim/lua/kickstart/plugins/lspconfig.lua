@@ -140,9 +140,9 @@ return {
             vim.lsp.buf.hover()
           end, { desc = 'Hover', buffer = event.buf })
 
-          -- TODO: make keybinding make sense. maybe <leader>khd for [K] Diagnostic [H]over [D]etails or something like that?
+          -- Keep infrequent diagnostic helpers in the utility namespace.
           -- QUESTION: what is this?
-          vim.keymap.set('n', '<leader>khd', function()
+          vim.keymap.set('n', '<leader>\\hd', function()
             vim.diagnostic.open_float()
           end, { desc = 'Diagnostic Open Float', buffer = event.buf })
 
@@ -227,8 +227,7 @@ return {
             )
           then
             -- TODO:  replace binding with  something that fits with my keybinding philosophy
-            -- <leader>kh could work. 
-            map('<leader>kh', function()
+            map('<leader>\\h', function()
               vim.lsp.inlay_hint.enable(
                 not vim.lsp.inlay_hint.is_enabled { bufnr = event.buf }
               )

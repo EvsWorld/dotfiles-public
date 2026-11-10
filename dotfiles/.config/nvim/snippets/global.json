@@ -1,0 +1,9 @@
+{
+  "todo": {
+    "prefix": "todo",
+    "body": [
+      "TODO: $0"
+    ],
+    "description": "Add TODO comment"
+  }
+}

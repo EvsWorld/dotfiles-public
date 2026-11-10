@@ -13,6 +13,43 @@ return {
       return '  ' .. vim.fn.fnamemodify(path, ':.')
     end
 
+    local function get_oil_cursor_filepath()
+      local oil = require 'oil'
+      local entry = oil.get_cursor_entry()
+      if not entry then
+        return nil
+      end
+
+      return oil.get_current_dir() .. entry.name
+    end
+
+    local function append_to_system_clipboard(text)
+      local clipboard = vim.fn.getreg '+'
+      local separator = ''
+      if clipboard ~= '' and clipboard:sub(-1) ~= '\n' then
+        separator = '\n'
+      end
+
+      vim.fn.setreg('+', clipboard .. separator .. text)
+    end
+
+    -- Oil resolves symlinks, so from a linked repo's root the real parent is not the hub.
+    -- If cwd (the hub) holds a symlink to the directory shown, go to the hub instead.
+    local function parent_or_hub()
+      local oil = require 'oil'
+      local hub = vim.fn.getcwd()
+      local dir = oil.get_current_dir()
+      if dir then
+        local here = vim.uv.fs_realpath(dir)
+        for name, kind in vim.fs.dir(hub) do
+          if kind == 'link' and vim.uv.fs_realpath(hub .. '/' .. name) == here then
+            return oil.open(hub)
+          end
+        end
+      end
+      require('oil.actions').parent.callback()
+    end
+
     require('oil').setup {
       -- Oil will take over directory buffers (e.g. `vim .` or `:e src/`)
       -- Set to false if you want some other plugin (e.g. netrw) to open when you edit directories.
@@ -44,8 +81,8 @@ return {
       },
       -- Send deleted files to the trash instead of permanently deleting them (:help oil-trash)
       delete_to_trash = true,
-      skip_confirm_for_simple_edits = false,
-      prompt_save_on_select_new_entry = true,
+      skip_confirm_for_simple_edits = true,
+      prompt_save_on_select_new_entry = true,  -- TODO what is this?
       -- Oil will automatically delete hidden buffers after this delay
       -- You can set the delay to false to disable cleanup entirely
       -- Note that the cleanup process only starts when none of the oil buffers are currently displayed
@@ -55,9 +92,10 @@ return {
         enabled = true,
         -- Time to wait for LSP file operations to complete before skipping
         timeout_ms = 1000,
+
         -- Set to true to autosave buffers that are updated with LSP willRenameFiles
         -- Set to "unmodified" to only save unmodified buffers
-        autosave_changes = true,
+        autosave_changes = 'unmodified',
       },
       -- Constrain the cursor to the editable parts of the oil buffer
       -- Set to `false` to disable, or "name" to keep it on the file names
@@ -78,17 +116,23 @@ return {
         ['<C-j>'] = false,
         ['<leader>y'] = {
           callback = function()
-            local oil = require 'oil'
-            local entry = oil.get_cursor_entry()
-            if entry then
-              local dir = oil.get_current_dir()
-              local filepath = dir .. entry.name
+            local filepath = get_oil_cursor_filepath()
+            if filepath then
               vim.fn.setreg('+', filepath)
               -- TODO: change to print??
               -- vim.notify('Copied: ' .. filepath, vim.log.levels.INFO)
             end
           end,
           desc = 'Copy file path to clipboard',
+        },
+        ['<leader>Y'] = {
+          callback = function()
+            local filepath = get_oil_cursor_filepath()
+            if filepath then
+              append_to_system_clipboard(filepath)
+            end
+          end,
+          desc = 'Append file path to clipboard',
         },
         -- ['<M-h>'] = 'actions.select_split',
         -- ['g?'] = { 'actions.show_help', mode = 'n' },
@@ -99,13 +143,22 @@ return {
         -- ['<C-p>'] = 'actions.preview',
         -- ['<C-c>'] = { 'actions.close', mode = 'n' },
         -- ['<C-l>'] = 'actions.refresh',
-        -- ['-'] = { 'actions.parent', mode = 'n' },
-        -- ['_'] = { 'actions.open_cwd', mode = 'n' },
+
+        ['_'] = { callback = parent_or_hub, mode = 'n', desc = 'Parent dir (cwd-aware)' }, -- up one level; hub-aware
+        ['-'] = { 'actions.open_cwd', mode = 'n' }, -- navigates to cwd in oil.
+
         -- ['`'] = { 'actions.cd', mode = 'n' },
-        -- ['~'] = { 'actions.cd', opts = { scope = 'tab' }, mode = 'n' },
+
+        -- TODO: add another that sorts by birthdate directly (ie gsba, gsbd)
         -- ['gs'] = { 'actions.change_sort', mode = 'n' },
-        -- ['gx'] = 'actions.open_external',
-        -- ['g.'] = { 'actions.toggle_hidden', mode = 'n' },
+
+        -- Root the current tab or window at Oil's displayed directory.
+        -- Telescope's default searches follow that scope in the active window.
+        ['g~'] = { 'actions.cd', opts = { scope = 'tab' }, mode = 'n' }, -- :tcd
+        ['gw'] = { 'actions.cd', opts = { scope = 'win' }, mode = 'n' }, -- :lcd
+
+        ['gx'] = 'actions.open_external',
+        ['g.'] = { 'actions.toggle_hidden', mode = 'n' },
         -- ['g\\'] = { 'actions.toggle_trash', mode = 'n' },
       },
       -- Set to false to disable all of the above keymaps

@@ -57,6 +57,8 @@ return {
         },
 
         file_panel = {
+          ['L'] = false,
+          ['<leader>gvl'] = actions.open_commit_log,
           ['j'] = actions.next_entry,
           ['k'] = actions.prev_entry,
           ['<cr>'] = actions.select_entry,
@@ -79,7 +81,8 @@ return {
           ['g!'] = actions.options,
           ['<C-d>'] = actions.open_in_diffview,
           ['y'] = actions.copy_hash,
-          ['L'] = actions.open_commit_log,
+          ['L'] = false,
+          ['<leader>gvl'] = actions.open_commit_log,
           ['zR'] = actions.open_all_folds,
           ['zM'] = actions.close_all_folds,
           ['j'] = actions.next_entry,

@@ -107,6 +107,50 @@ declare -A FILES=(
     ["$HOME/.config/tmux/README.md"]="dotfiles/.config/tmux/README.md"
     ["$HOME/.config/nvim/README.md"]="dotfiles/.config/nvim/README.md"
     ["$HOME/.config/ghostty/README.md"]="dotfiles/.config/ghostty/README.md"
+    # Files the published configs call directly
+    ["$HOME/.config/nvim/lua/kickstart/plugins/no-neck-pain.lua"]="dotfiles/.config/nvim/lua/kickstart/plugins/no-neck-pain.lua"
+    ["$HOME/.config/nvim/lua/custom/plugins/sessions.lua"]="dotfiles/.config/nvim/lua/custom/plugins/sessions.lua"
+    ["$HOME/.config/tmux/scripts/equalize-preserve-sidebar.sh"]="dotfiles/.config/tmux/scripts/equalize-preserve-sidebar.sh"
+    ["$HOME/.config/tmux/scripts/sesh.sh"]="dotfiles/.config/tmux/scripts/sesh.sh"
+    ["$HOME/.config/sesh/sesh.toml"]="dotfiles/.config/sesh/sesh.toml"
+    ["$HOME/.config/tmux/scripts/open-url-with-copy.sh"]="dotfiles/.config/tmux/scripts/open-url-with-copy.sh"
+    ["$HOME/.config/tmux/scripts/copy-from-claude.py"]="dotfiles/.config/tmux/scripts/copy-from-claude.py"
+    ["$HOME/scripts/tmux-theme-sync"]="dotfiles/scripts/tmux-theme-sync"
+    ["$HOME/scripts/system-appearance"]="dotfiles/scripts/system-appearance"
+    ["$HOME/.config/lazygit/config.yml"]="dotfiles/.config/lazygit/config.yml"
+    # Claude Code and Codex hooks
+    ["$HOME/scripts/llm-hook-block-dangerous.sh"]="dotfiles/scripts/llm-hook-block-dangerous.sh"
+    ["$HOME/scripts/llm-hook-session-log.sh"]="dotfiles/scripts/llm-hook-session-log.sh"
+    ["$HOME/scripts/llm-hook-session-end.sh"]="dotfiles/scripts/llm-hook-session-end.sh"
+    # Shell, editor, and git support files
+    ["$HOME/.config/tmux/scripts/tmux-sessionizer"]="dotfiles/.config/tmux/scripts/tmux-sessionizer"
+    ["$HOME/.zshenv"]="dotfiles/.zshenv"
+    ["$HOME/.zprofile"]="dotfiles/.zprofile"
+    ["$HOME/.config/nvim/.stylua.toml"]="dotfiles/.config/nvim/.stylua.toml"
+    ["$HOME/.config/nvim/snippets/global.json"]="dotfiles/.config/nvim/snippets/global.json"
+    ["$HOME/.config/nvim/snippets/lua.json"]="dotfiles/.config/nvim/snippets/lua.json"
+    ["$HOME/.gitignore_global"]="dotfiles/.gitignore_global"
+    # tmux ADRs, listed one by one so new ADRs stay opt-in. 011 is held back
+    # because it names private projects.
+    ["$HOME/.config/tmux/docs/adr/001-session-order-bindings.md"]="dotfiles/.config/tmux/docs/adr/001-session-order-bindings.md"
+    ["$HOME/.config/tmux/docs/adr/002-pane-border-visibility.md"]="dotfiles/.config/tmux/docs/adr/002-pane-border-visibility.md"
+    ["$HOME/.config/tmux/docs/adr/003-layout-only-session-restore.md"]="dotfiles/.config/tmux/docs/adr/003-layout-only-session-restore.md"
+    ["$HOME/.config/tmux/docs/adr/004-single-bindings-file.md"]="dotfiles/.config/tmux/docs/adr/004-single-bindings-file.md"
+    ["$HOME/.config/tmux/docs/adr/005-delegate-yank-to-tmux-yank.md"]="dotfiles/.config/tmux/docs/adr/005-delegate-yank-to-tmux-yank.md"
+    ["$HOME/.config/tmux/docs/adr/006-mouse-scroll-no-exit-copy-mode.md"]="dotfiles/.config/tmux/docs/adr/006-mouse-scroll-no-exit-copy-mode.md"
+    ["$HOME/.config/tmux/docs/adr/007-route-scroll-keys-by-alternate-screen.md"]="dotfiles/.config/tmux/docs/adr/007-route-scroll-keys-by-alternate-screen.md"
+    ["$HOME/.config/tmux/docs/adr/008-no-prefix-copy-mode-search.md"]="dotfiles/.config/tmux/docs/adr/008-no-prefix-copy-mode-search.md"
+    ["$HOME/.config/tmux/docs/adr/009-sessionx-fast-custom-paths.md"]="dotfiles/.config/tmux/docs/adr/009-sessionx-fast-custom-paths.md"
+    ["$HOME/.config/tmux/docs/adr/010-clean-prose-copy.md"]="dotfiles/.config/tmux/docs/adr/010-clean-prose-copy.md"
+    ["$HOME/.config/tmux/docs/adr/012-sessionx-session-recency-fork.md"]="dotfiles/.config/tmux/docs/adr/012-sessionx-session-recency-fork.md"
+    ["$HOME/.config/tmux/docs/adr/013-sessionx-secondary-launch-binding.md"]="dotfiles/.config/tmux/docs/adr/013-sessionx-secondary-launch-binding.md"
+    ["$HOME/.config/tmux/docs/adr/014-native-binding-notes.md"]="dotfiles/.config/tmux/docs/adr/014-native-binding-notes.md"
+    ["$HOME/.config/tmux/docs/adr/015-single-clipboard-writer.md"]="dotfiles/.config/tmux/docs/adr/015-single-clipboard-writer.md"
+    ["$HOME/.config/tmux/docs/adr/016-floax-left-pane-is-project-pane.md"]="dotfiles/.config/tmux/docs/adr/016-floax-left-pane-is-project-pane.md"
+    ["$HOME/.config/tmux/docs/adr/017-retire-sessionx-for-sesh.md"]="dotfiles/.config/tmux/docs/adr/017-retire-sessionx-for-sesh.md"
+    ["$HOME/.config/tmux/docs/adr/018-enable-automatic-rename-for-nerd-font-window-icons.md"]="dotfiles/.config/tmux/docs/adr/018-enable-automatic-rename-for-nerd-font-window-icons.md"
+    ["$HOME/.config/tmux/docs/adr/019-remove-nerd-font-window-name-active-pane-only.md"]="dotfiles/.config/tmux/docs/adr/019-remove-nerd-font-window-name-active-pane-only.md"
+    ["$HOME/.config/tmux/docs/adr/020-disable-agent-sidebar-trial.md"]="dotfiles/.config/tmux/docs/adr/020-disable-agent-sidebar-trial.md"
     # TODO: add these, and others similar, if applicable
 )
 
@@ -135,6 +179,21 @@ EXCLUDED_PATHS=(
     "dotfiles/scripts/network-scan"
 )
 
+# Strings that must never appear in the published snapshot, in any form.
+# Matched case-insensitively as fixed strings; the short hostname also
+# catches the fully qualified one.
+LEAK_PATTERNS=(
+    "$MY_USERNAME"
+    "${MY_HOSTNAME%.local}"
+    "iCloud~md~obsidian"
+)
+if [ -n "${MY_ORG:-}" ]; then
+    LEAK_PATTERNS+=("$MY_ORG")
+fi
+for term in "${!MY_PRIVATE_TERMS[@]}"; do
+    LEAK_PATTERNS+=("$term")
+done
+
 # Sanitization function
 sanitize_file() {
     local file="$1"
@@ -146,8 +205,23 @@ sanitize_file() {
     sed -i.bak "s/\"$MY_HOSTNAME\"/\"YOUR-HOSTNAME.local\"/g" "$file"
     sed -i.bak "s/'$MY_HOSTNAME'/'YOUR-HOSTNAME.local'/g" "$file"
 
-    # Sanitize Obsidian vault path (iCloud specific)
-    sed -i.bak "s|~/Library/Mobile Documents/iCloud~md~obsidian/Documents/[^'\"]*|~/Documents/ObsidianVault|g" "$file"
+    # Sanitize Obsidian vault path (iCloud specific). Matches the ~/ and $HOME/
+    # forms (/Users/<name>/ was already rewritten to $HOME above) and keeps
+    # the prefix so the public path expands the same way.
+    sed -i.bak -E "s#(~|[\$]HOME)/Library/Mobile Documents/iCloud~md~obsidian/Documents/[^'\"]*#\1/Documents/ObsidianVault#g" "$file"
+
+    # Replace employer name, keeping its casing. Mixed casings are left for
+    # the leak check to catch.
+    if [ -n "${MY_ORG:-}" ]; then
+        local org="${MY_ORG,,}"
+        sed -i.bak -e "s/${org^^}/EMPLOYER/g" -e "s/${org^}/Employer/g" -e "s/$org/employer/g" "$file"
+    fi
+
+    # Replace other private terms (such as project names) with their
+    # configured stand-ins.
+    for term in "${!MY_PRIVATE_TERMS[@]}"; do
+        sed -i.bak "s/$term/${MY_PRIVATE_TERMS[$term]}/g" "$file"
+    done
 
     # Clean up backup files
     rm -f "$file.bak"
@@ -197,6 +271,30 @@ echo ""
 
 # Git operations
 if [ -d .git ]; then
+    # Verify the sanitized snapshot before staging anything. The sed rules
+    # only catch the forms they anticipate; this scans everything git add -A
+    # would stage. This script is excluded because its own rules contain
+    # the patterns.
+    leak_args=()
+    for pattern in "${LEAK_PATTERNS[@]}"; do
+        leak_args+=(-e "$pattern")
+    done
+
+    leaks=$(git grep -nIiF --untracked "${leak_args[@]}" -- . ':(exclude)sync-dotfiles.sh') \
+        && leak_status=0 || leak_status=$?
+
+    if [ "$leak_status" -eq 0 ]; then
+        echo "❌ ERROR: Personal data survived sanitization:"
+        echo "$leaks"
+        echo ""
+        echo "Files were copied for inspection, but nothing was staged or committed."
+        echo "Add a sanitize rule or fix the source file, then rerun."
+        exit 1
+    elif [ "$leak_status" -ne 1 ]; then
+        echo "❌ ERROR: Leak check failed to run (git grep exit $leak_status)"
+        exit 1
+    fi
+
     # Add all changes
     git add -A -- . \
         ':(exclude)scripts/network-scan/**' \

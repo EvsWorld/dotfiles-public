@@ -24,6 +24,9 @@ vim.o.completeopt = 'menuone,noselect'
 -- NOTE: You should make sure your terminal supports this
 vim.o.termguicolors = true
 
+-- Blink the cursor only in insert mode
+vim.opt.guicursor = 'n-v-c-sm:block,i:ver25-blinkwait800-blinkon700-blinkoff700,ci-ve:ver25,r-cr-o:hor20,t:block-TermCursor'
+
 -- Set highlight on search
 vim.o.hlsearch = false
 vim.o.incsearch = true
@@ -64,7 +67,7 @@ vim.o.signcolumn = 'yes'
 -- Decrease update time
 vim.o.updatetime = 250 -- was 50; 50ms caused LSP document_highlight to fire 20x/sec on CursorHold
 
--- Decrease mapped sequence wait time
+-- time to wait for a mapped sequence to complete. milliseconds
 vim.o.timeoutlen = 300
 
 -- Configure how new splits should be opened
@@ -107,6 +110,7 @@ vim.o.foldmethod = 'manual'
 -- instead raise a dialog asking if you wish to save the current file(s)
 -- See `:help 'confirm'`
 vim.o.confirm = true
+vim.o.autoread = true
 
 -- from https://fredrikaverpil.github.io/blog/2024/12/04/ghostty-on-macos/
 -- tab title
@@ -122,6 +126,7 @@ end
 
 local augroup = vim.api.nvim_create_augroup
 local autocmd = vim.api.nvim_create_autocmd
+local vim_resized_group = augroup('VimResized', { clear = true })
 local no_auto_comments = augroup('NoAutoComments', { clear = true })
 autocmd('FileType', {
   group = no_auto_comments,
@@ -158,133 +163,12 @@ autocmd({ 'FileType', 'BufEnter', 'BufWinEnter' }, {
   end,
 })
 
--- Tmux-aware session management
-local function get_tmux_session_name()
-  local tmux_session =
-    vim.fn.system("tmux display-message -p '#S' 2>/dev/null"):gsub('\n', '')
-  if vim.v.shell_error == 0 and tmux_session ~= '' then
-    return tmux_session
-  end
-  return nil
-end
-
-local function get_session_file()
-  local session_dir = vim.fn.expand '~/.config/nvim/sessions/'
-  vim.fn.mkdir(session_dir, 'p')
-  local tmux_session = get_tmux_session_name()
-  if tmux_session then
-    return session_dir .. tmux_session .. '.vim'
-  else
-    return session_dir .. 'default.vim'
-  end
-end
-
-local function get_qf_file()
-  local session_dir = vim.fn.expand '~/.config/nvim/sessions/'
-  local tmux_session = get_tmux_session_name()
-  if tmux_session then
-    return session_dir .. tmux_session .. '_qf.json'
-  else
-    return session_dir .. 'default_qf.json'
-  end
-end
-
-local function save_quickfix_list()
-  local qf_file = get_qf_file()
-  local qflist = vim.fn.getqflist()
-  if #qflist > 0 then
-    local json = vim.fn.json_encode(qflist)
-    local file = io.open(qf_file, 'w')
-    if file then
-      file:write(json)
-      file:close()
-    end
-  else
-    -- Remove qf file if list is empty
-    vim.fn.delete(qf_file)
-  end
-end
-
-local function restore_quickfix_list()
-  local qf_file = get_qf_file()
-  if vim.fn.filereadable(qf_file) == 1 then
-    local file = io.open(qf_file, 'r')
-    if file then
-      local json = file:read '*all'
-      file:close()
-      local ok, qflist = pcall(vim.fn.json_decode, json)
-      if ok and qflist and #qflist > 0 then
-        vim.fn.setqflist(qflist)
-      end
-    end
-  end
-end
-
--- Auto-save session on exit
-vim.api.nvim_create_autocmd('VimLeavePre', {
-  desc = 'Save session automatically (tmux-aware)',
-  group = vim.api.nvim_create_augroup('SaveSession', { clear = true }),
-  callback = function()
-    -- Close all nofile windows before saving so scratch/plugin buffers (e.g. Avante) aren't persisted
-    for _, win in ipairs(vim.api.nvim_list_wins()) do
-      local buf = vim.api.nvim_win_get_buf(win)
-      local bt = vim.api.nvim_get_option_value('buftype', { buf = buf })
-      if bt == 'nofile' or bt == 'nowrite' then
-        pcall(vim.api.nvim_win_close, win, false)
-      end
-    end
-    local session_file = get_session_file()
-    vim.cmd('mksession! ' .. session_file)
-    save_quickfix_list()
-    local tmux_session = get_tmux_session_name()
-    if tmux_session then
-      print('Session saved for tmux session: ' .. tmux_session)
-    end
-  end,
-})
-
--- Auto-load session on startup
-vim.api.nvim_create_autocmd('VimEnter', {
-  desc = 'Auto-load session (tmux-aware)',
-  callback = function()
-    if vim.fn.argc() == 0 then
-      local session_file = get_session_file()
-      if vim.fn.filereadable(session_file) == 1 then
-        -- Defer session loading until after lazy.nvim is ready
-        vim.defer_fn(function()
-          -- TODO:  lua/options.lua|196 col 33-40 warning| Cannot assign
-          -- `table` to parameter `fun(...any):...unknown`. - `table`
-          -- cannot match `fun(...any):...unknown` - Type `table`
-          --   cannot match `fun(...any):...unknown`
-          local ok, err = pcall(vim.cmd, 'source ' .. session_file)
-          if ok then
-            local tmux_session = get_tmux_session_name()
-            if tmux_session then
-              print('Session loaded for tmux session: ' .. tmux_session)
-            end
-          else
-            print('Failed to load session: ' .. err)
-            -- Clean up the problematic session file
-            vim.fn.delete(session_file)
-            print('Deleted corrupted session file: ' .. session_file)
-          end
-        end, 100) -- Wait 100ms for lazy.nvim to finish loading
-      end
-    end
-  end,
-})
-
-local hygiene_ok, session_hygiene = pcall(require, 'custom.session_hygiene')
-if hygiene_ok then
-  session_hygiene.setup()
-else
-  vim.schedule(function()
-    vim.notify(
-      'Failed to load custom.session_hygiene: ' .. tostring(session_hygiene),
-      vim.log.levels.WARN
-    )
-  end)
-end
+-- Session persistence is handled by auto-session (lua/custom/plugins/sessions.lua),
+-- keyed by cwd + git branch. LSP memory hygiene is handled by garbage-day.nvim.
+-- Trial: omit curdir so restored sessions use the directory Neovim was
+-- launched from. Revisit if restoring sessions from other directories
+-- becomes important; adding curdir back would restore saved cwd state.
+vim.o.sessionoptions = 'blank,buffers,folds,help,tabpages,winsize,winpos,terminal,localoptions'
 
 -- Folding settings. To work with treesitter
 -- vim.o.foldexpr = 'nvim_treesitter#foldexpr()'

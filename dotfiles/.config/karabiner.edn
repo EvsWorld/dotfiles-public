@@ -35,7 +35,7 @@
                         ;; Configure simlayer timeout. (def: TODO)
                         ;; You have to press the second key within the 200 ms window or else it types normally
                         ;; is this the same as sim?
-                      :simlayer-threshold 100
+                      :simlayer-threshold 150
                       ;;
                       }
 
@@ -45,11 +45,19 @@
 ;; profiles
 
 ;; Define different kinds of keyboards
- :devices {:kb-macbooks [{:vendor_id 4294969269}                        ;; macbook m2 personal
-                         {:vendor_id 12345}]                               ;; macbook m1 work
-           :kb-code [{:vendor_id 4295646056}]                            ;; wasd code mechanical
-           :macbook-personal-m2 [{:vendor_id 4294969269}]                ;; macbook m2 personal
-           :macbook-work-m1 [{:vendor_id 12345}]                         ;; macbook m1 work
+;; vendor_id / product_id come from:
+;;   hidutil list --matching '{"PrimaryUsagePage":1}'
+;; NOT from the device_id shown in Karabiner-EventViewer or /var/log/karabiner/ --
+;; those are per-connection handles and change on every reconnect. (The values here
+;; were device_ids until 2026_08_23, which is why no device condition ever matched.)
+ :devices {:kb-macbooks [{:vendor_id 1452}]                          ;; any Apple internal keyboard
+           :kb-code [{:vendor_id 1241 :product_id 617}]              ;; wasd code mechanical -- reports as "USB Keyboard" (0x4d9/0x269)
+           ;; the node 75 enumerates as THREE different devices, one per transport.
+           ;; verified 2026_08_24 with hidutil while actually connected each way.
+           :kb-node75 [{:vendor_id 2007}                             ;; bluetooth LE -- "Node 75 LP-1"      (0x7d7/0x0; product_id really is 0)
+                       {:vendor_id 6645 :product_id 4144}            ;; wired USB-C  -- "Node 75 LP"        (0x19f5/0x1030)
+                       {:vendor_id 6645 :product_id 9760}]           ;; 2.4G dongle  -- "Node 75 LP Dongle" (0x19f5/0x2620)
+           :macbook-personal-m2 [{:vendor_id 1452 :product_id 833}]  ;; macbook air m2 (Mac14,2)
            ;;
 } ;; devices
 
@@ -101,7 +109,6 @@
        :command_palette {:key :p :modi :cs}
        :pintab {:key :p :modi :option}
        :fOneTo {:key :f8 :modi [:left_shift :left_control :left_command] :lazy true}
-       :addSiteToRaindrop {:key :4 :modi :command :lazy true}
        :toggle_terminal_visible {:key :0 :modi :hyper :lazy true}
        :show_top_bar {:key :f8 :modi :cts :lazy true} ;;  TODO: not working
        :vscode_line_above [:escape :i :!!backslash :escape]
@@ -157,6 +164,7 @@
                 :anki ["^net\\.ankiweb\\.dtop$"]
                 :chrome ["^com\\.google\\.Chrome$"]
                 :safari ["^com\\.apple\\.Safari$"]
+                :contacts ["^com\\.apple\\.AddressBook$"]
                 :photos ["^com\\.apple\\.Photos$"]
                 :firefox ["^org\\.mozilla\\.firefox$"]
                 :finder ["^com\\.apple\\.finder$"]
@@ -172,6 +180,7 @@
                 :appleConsole ["^com\\.apple\\.Console$"]
                 :things ["^com\\.culturedcode\\.ThingsMac$"]
                 :calendar ["^com\\.apple\\.iCal$"]
+                :reminders ["^com\\.apple\\.reminders$"]
                 ;; :logioptions ["^com\\.logi\\.optionsplus$"]
                 :logioptions ["com.logi.optionsplus"]
                 :dayone ["com.bloombuilt.dayone-mac"]
@@ -183,7 +192,6 @@
                 :activityMonitor ["com.apple.ActivityMonitor"]   ;; TODO: make key
                 :onePassword ["^com\\.1password\\.1password$"]
                 :chatgpt ["^com\\.openai\\.chat$"]
-                :claude ["^com\\.anthropic\\.claudefordesktop$"]
                 :vlc ["^org\\.videolan\\.vlc$"]
                 :systempreferences ["^com\\.apple\\.systempreferences$"]
                 :loom ["^com\\.loom\\.desktop$"]
@@ -210,6 +218,7 @@
                 :obsidian ["^md\\.obsidian$"]
                 :preview ["^com\\.apple\\.Preview$"]
                 :signal ["^org\\.whispersystems\\.signal-desktop$"]
+                :claude ["^com\\.anthropic\\.claudefordesktop$"]
 
 ;;;;;;
                 }
@@ -237,12 +246,18 @@
           :q-mode {:key :q}                                           ;;  q-mode+  TODO: decide if this should be simlayer or layer
         ;;   :z-command-mode {:key :z :modi :left_command}              ;; TODO not working
           :z-mode {:key :z}                                       ;; z-mode+ TODO: seems to work fine here as layer even without changing z to by leader in vim
-          :quote-mode {:key :quote}                              ;; quote-mode+  trying out making this symbol mode.   TODO: try using this here a layer for symbol mode
-          :f3-mode {:key :f3}                                   ;; f3-mode+
+          ; :f3-mode {:key :f3}                                   ;; f3-mode+
           ;; TODO: put a labeled thing here for the cmd + h remap
-          :right-command-mode {:key :right_command}                 ;; right-command-mode+
+          ;; :right-command-mode {:key :right_command}              ;; removed 2026_08_23: declared but referenced by no rule in :main,
+          ;;                                                        ;; so goku emitted nothing for it. right_command is in practice
+          ;;                                                        ;; owned by the {:alone ...} rules (homerow global-- at the bottom
+          ;;                                                        ;; of this file, plus the app-scoped ones). Re-adding it as a layer
+          ;;                                                        ;; means deciding how it coexists with those.
           ;; // TODO: make tab mode. will have to map tab like capslock is
         ;;    :tab-mode {:key :tab :alone {:key :tab}}         ;; ;;    tab-mode+
+
+          :quote-mode {:key :quote}                              ;; quote-mode+  trying out making this symbol mode.   TODO: try using this here a layer for symbol mode
+
 ;
 } ;; end  layers
 
@@ -260,7 +275,9 @@
              :hyphen-mode {:key :hyphen}                    ;; hyphen-mode+
              ;; // TODO: needs be this for work mac (works with built in kb and wasd code mechanical kb) .
              ;;  however it actually also works with personal mac using wasd code mechanical kb. but not with personal mac built in kb
+
              :grave-mode {:key :grave_accent_and_tilde}      ;; grave-mode+     needs to be this for personal mac  built in kb
+
              ;;
              }
 ;; simlayers
@@ -338,7 +355,7 @@
                  [:f7 [:keyboardMaestro "Dark/light theme global"]]  ;; keyboard maestro toggle dark light theme
                  [:f8 [:open "Karabiner-Elements"]]
                  [:f9 [:keyboardMaestro "Karabiner Event Viewer: Open app"]]   ;; TODO: reassign
-                 [:f10 [:code-project-vscode "~/scripts.code-workspace"]]
+                 ; TODO: [:f10
                  [:f11 [:keyboardMaestro "open: Slack, Teams and Whatsapp"]]   ;; TODO: make keyboard maestro open whatsapp if on personal machine
                 ;; f14 ??
                  [:f15 [:openFolder "/Volumes/rpi6tbshare/sr"]] ;; only works when drive connected. have it here bc will only use when on big keyboard
@@ -350,14 +367,15 @@
                  [:4 [:open "Calendar"]]     ;;  TODO make it refresh after opening page
                  [:5 [:keyboardMaestro "Open Keyboard Maestro Engine Logs in Console"]]
                  ;; TODO make it open in cursor and to the karabiner.edn file
-                 [:6 [:code-project-vscode  "~/config.code-workspace" "~/.config/karabiner.edn"]]
+                 ; TODO: [:6 [
                  [:7 [:open "Keyboard Maestro"]]
                  [:8 [:openApps "Alfred Preferences"]]
-                 [:9 [:openFolder "/System/Library/PreferencePanes/Bluetooth.prefPane"]]
+                 [:9 :!Cup_arrow [:finder]]
+                 [:9 [:openFolder "/System/Library/PreferencePanes/Bluetooth.prefPane"] [:!finder]]
                  [:0 [:openFolder "/System/Library/PreferencePanes/Sound.prefPane"]]
                  [:hyphen [:beep]]    ;; TODO can use this once change q-mode to q_mode. qhypen (q-) was getting confused typing the words 'q-mode'
                  [:equal_sign [:keyboardMaestro "Karabiner Event Viewer: Open app"]]   ;; TODO: reassign
-                 [:delete_or_backspace [:code-project-vscode "~/scratch.code-workspace"]]
+                ; TODO:  [:delete_or_backspace [
 
 ;; ****** q-QUERTY-- *****
          ;;  ****** q-q-left hand ******
@@ -372,24 +390,32 @@
                  ; [:open_bracket :!Oopen_bracket] ;; proxy for scroll through copilot suggestions
                  ; [:close_bracket :!Oclose_bracket] ;; proxy for scroll through copilot suggestions
 
-                ;; Page down, workaround for the Keep My Story engine, clipboard, viewer.
+                ;; --- Bracket mappings: paging behavior per-app ---
+
+                ;; Keyboard Maestro: Option+Page keys
                  [:open_bracket [:!Opage_up  :up_arrow :up_arrow :up_arrow :up_arrow :up_arrow  :up_arrow :up_arrow :up_arrow :up_arrow :up_arrow :up_arrow :up_arrow :up_arrow  :up_arrow  :up_arrow] [:keyboardmaestroengine]]
                  [:close_bracket [:!Opage_down    :down_arrow :down_arrow :down_arrow :down_arrow  :down_arrow   :down_arrow   :down_arrow   :down_arrow    :down_arrow  :down_arrow :down_arrow :down_arrow :down_arrow :down_arrow :down_arrow :down_arrow :down_arrow] [:keyboardmaestroengine]]
-                ;; move cursor up and down page
-                 [:open_bracket  [:up_arrow :up_arrow :up_arrow :up_arrow  :up_arrow  :up_arrow  :up_arrow  :up_arrow :up_arrow :up_arrow :up_arrow  :up_arrow  :up_arrow  :up_arrow  :up_arrow :up_arrow :up_arrow] [:!vscodeAndCursor :!keyboardmaestroengine]]
-                 [:close_bracket  [:down_arrow :down_arrow :down_arrow :down_arrow  :down_arrow  :down_arrow  :down_arrow  :down_arrow :down_arrow :down_arrow :down_arrow  :down_arrow  :down_arrow  :down_arrow  :down_arrow :down_arrow :down_arrow] [:!vscodeAndCursor :!keyboardmaestroengine]]
-                ;; highlight paging up down
+                ;; Default paging: arrow sequences (non-destructive text movement/selection)
+                 [:open_bracket  [:up_arrow :up_arrow :up_arrow :up_arrow  :up_arrow  :up_arrow  :up_arrow  :up_arrow :up_arrow :up_arrow :up_arrow  :up_arrow  :up_arrow  :up_arrow  :up_arrow :up_arrow :up_arrow] [:!vscodeAndCursor :!keyboardmaestroengine :!ghostty]]
+                 [:close_bracket  [:down_arrow :down_arrow :down_arrow :down_arrow  :down_arrow  :down_arrow  :down_arrow  :down_arrow :down_arrow :down_arrow :down_arrow  :down_arrow  :down_arrow  :down_arrow  :down_arrow :down_arrow :down_arrow] [:!vscodeAndCursor :!keyboardmaestroengine :!ghostty]]
+                ;; Select text: Shift+arrow sequences (extend selection while paging)
                  [:!Copen_bracket  [:!Sup_arrow :!Sup_arrow  :!Sup_arrow  :!Sup_arrow  :!Sup_arrow  :!Sup_arrow :!Sup_arrow :!Sup_arrow :!Sup_arrow :!Sup_arrow  :!Sup_arrow  :!Sup_arrow  :!Sup_arrow  :!Sup_arrow :!Sup_arrow :!Sup_arrow :!Sup_arrow  :!Sup_arrow  :!Sup_arrow :!Sup_arrow  :!Sup_arrow :!Sup_arrow] [:!vscodeAndCursor :!keyboardmaestroengine]]
                  [:!Cclose_bracket  [:!Sdown_arrow :!Sdown_arrow  :!Sdown_arrow :!Sdown_arrow  :!Sdown_arrow  :!Sdown_arrow :!Sdown_arrow :!Sdown_arrow :!Sdown_arrow  :!Sdown_arrow  :!Sdown_arrow  :!Sdown_arrow  :!Sdown_arrow :!Sdown_arrow :!Sdown_arrow :!Sdown_arrow  :!Sdown_arrow  :!Sdown_arrow  :!Sdown_arrow  :!Sdown_arrow :!Sdown_arrow :!Sdown_arrow] [:!vscodeAndCursor :!keyboardmaestroengine]]
-                ;; works well, but going to try moving down up by 15 lines
-                 [:open_bracket  [:escape :0 :2 :0 :k] [:vscodeAndCursor :!keyboardmaestroengine]]    ;; TODO: put this in init.vim file for vscode, move cursor up 12 lines
-                 [:close_bracket  [:escape :0 :2 :0 :j] [:vscodeAndCursor :!keyboardmaestroengine]]  ;;TODO: put this in init.vim file  for vscode, move cursor down 12 lines
+                ;; Editor (VSCode/Cursor): vim movement (20-line jumps)
+                 [:open_bracket  [:escape :0 :2 :0 :k] [:vscodeAndCursor :!keyboardmaestroengine]]
+                 [:close_bracket  [:escape :0 :2 :0 :j] [:vscodeAndCursor :!keyboardmaestroengine]]
                 ;;  [:open_bracket  :!Sopen_bracket :vscodeAndCursor]    ;; for vscode, send } and { for moving by paragraph
                 ;;  [:close_bracket  :!Sclose_bracket :vscodeAndCursor]  ;; for vscode, send } and { for moving by paragraph
                 ;;  [:open_bracket [:escape :u] [:chrome :firefox]]      ;; so can page up, down in chrome same as vscode (chrome-extension-- vimium)
                 ;;  [:close_bracket [:escape :d] [:chrome :firefox]]      ;; so can page up, down in chrome same as vscode (chrome-extension-- vimium)
-                 [:open_bracket :!TOopen_bracket [:!code  :!chrome :!firefox]]   ;; TODO: add exception for :vscodeAndCursor left open for whatever in programs not vscode, chrome, or firefox
-                 [:close_bracket :!TOclose_bracket [:!code  :!chrome :!firefox]]   ;; TODO: add exception for :vscodeAndCursor left open for whatever in programs not vscode, chrome, or firefox
+
+                ;; Fallback: Ctrl+Option+bracket (for other apps)
+                 [:open_bracket :!TOopen_bracket [:!code  :!chrome :!firefox :!ghostty]]
+                 [:close_bracket :!TOclose_bracket [:!code  :!chrome :!firefox :!ghostty]]
+
+                ;; Terminal (Ghostty): actual page keys (respects terminal paging)
+                 [:open_bracket :page_up [:ghostty]]
+                 [:close_bracket :page_down [:ghostty]]
 
 ;; ****  q-ASDFG-- ****
          ;;  ****** q-a-left hand ******
@@ -402,6 +428,7 @@
          ; TODO: make this arrow keys and replace hyper?
                  [:!Ok :!Cup_arrow [:things]]    ;; drag/ move selected items (at least works in things )
                  [:!Oj :!Cdown_arrow [:things]]   ;; drag/ move selected items (at least works in things )
+                 [:!Ok :!Cup_arrow [:finder]]        ;; go to parent directory
                  [:!Ok [:keyboardMaestro "Action - Move up"] [:keyboardmaestro]]  ;; drag/ move selected items
                  [:!Oj [:keyboardMaestro "Action - Move down"] [:keyboardmaestro]]   ;; drag/ move selected items
                  [:return_or_enter :!TOreturn_or_enter]             ;; used for alfred actions
@@ -453,7 +480,7 @@
                  [:o [:!Cright_arrow :!Sreturn_or_enter] [:slack]]
                  [:o [:!Cright_arrow :!Sreturn_or_enter] [:teams]]
                  [:o [:!Cright_arrow :!Sreturn_or_enter] [:vscodeAndCursor]]    ;; TODO map this in vscode to line below when in editor
-                 [:o [:!Cright_arrow :!Oreturn_or_enter] [:ghostty]]
+                 [:o [:!Cright_arrow :!Oreturn_or_enter] [:ghostty]]     ;; weird in codex
                  [:o [:!Cright_arrow :!Sreturn_or_enter] [:chrome]]    ;; TODO map this in vscode to line below when in editor
                  [:o [:!Cright_arrow :!Sreturn_or_enter] [:firefox]]    ;; TODO map this in vscode to line below when in editor
 
@@ -473,7 +500,7 @@
                  [:!Co [:!Ta :left_arrow  :!Sreturn_or_enter] [:chrome]]
                  [:!Co [:!Ta :left_arrow  :!Sreturn_or_enter] [:firefox]]
                  [:!Co [:!Cleft_arrow   :!Sreturn_or_enter :up_arrow] [:vscodeAndCursor]]
-                 [:!Co [:!Cleft_arrow   :!Oreturn_or_enter :up_arrow] [:ghostty]]
+                 [:!Co [:right_arrow :!Cleft_arrow :!Oreturn_or_enter :left_arrow] [:ghostty]]
                 ;;  [:!Co [:!!backslash] [:vscodeAndCursor]]      ;; new line above in vsode just like everywhere else
 
                 ;; highlighting text
@@ -507,15 +534,17 @@
                  [:r :!CSz :!vscodeAndCursor]          ;; redo
 
                  [:comma :delete_forward]           ;; delete forward one character
-                 [:period :!Odelete_forward]     ;; delete forward by one word  (does not work in ghostty)
+
+                 [:period [:beep] [:terminalapps]]  ;; training wheels: delete-word-forward has no working equivalent in terminals
+                 [:period :!Odelete_forward [:!terminalapps]]  ;; delete forward by one word
+
                  [:!Cperiod :!Wk]                 ;;  delete to end of line  (not working in firefox. works in chatgpt)
                 ;;  [:!Cm :!Cdelete_or_backspace]     ;; delete to beginning of line  TODO: assign to something else
                 ;;  [:!Ccomma :!Wk]                   ;;  delete to end of line TODO: assign to something else
                  [:d :!Cx [:!vscodeAndCursor :!terminalapps]]       ;; vim d (delete/cut)
                  [:d :!Td [:terminalapps]]
                  [:p :!Cv]              ;; Paste
-                ;;  [:!Cp [:keyboardMaestro "Paste plain text"]]  ;; not sure if this does anything
-                ;;  [:!Cp [:alfredWorkflow "paste-plain-text" "com.alfredapp.vero.pasteasplaintext"]]     ;; not working
+                 [:!Cp :!Tv [:terminalapps]]   ;; paste image (for claude and codex CLI)
                  [:!Cp :!CSTp] ;; runs trigger "paste-plain-text" in workflow "com.alfredapp.vero.pasteasplaintext"
                  [:y :!Cc]              ;; yank
                  [:semicolon [:!Cright_arrow :!Cdelete_or_backspace] [:vscodeAndCursor]]     ;; delete line. also alows me to cancel search results in vsvscodeAndCursor. works well 2024_05_07
@@ -525,8 +554,8 @@
 
                 ;; copy current line      hyper + cmd + y
                 ;; doesn not work in vscode, ghostty
-                 [:!Cy [:!Cleft_arrow :!CSright_arrow :!Cc :right_arrow] [:!finder]]
-                 [:!Cy [:!COc] [:finder]]
+                 [:!Cy [:!Cleft_arrow :!CSright_arrow :!Cc :right_arrow]]
+                 [:!Oy [:!COc] [:finder]]
                  [:!Cd [:!Cleft_arrow :!CSright_arrow :!Cx]]               ; delete (cut) current line hyper + cmd + d
                  [:slash [:!Cleft_arrow :!CSright_arrow]  [:!vscodeAndCursor]]                 ; Highlight current line
                  [:w [:!Oleft_arrow :!OSright_arrow]]                    ; Highlight word
@@ -592,8 +621,8 @@
                  [:2 [:keyboardMaestro "Search selection in google"]]  ;; used to be: ;;  [:1 :!!1]
                  [:3 [:keyboardMaestro "Things Quick Add"]]   ;; proxy global for add new item to things app
                  ; [:3 [:keyboardMaestro "Open/Reveal: Finder"]]
-                 [:4 [:keyboardMaestro "Open/Reveal: Finder - downloads"]]
-                 [:5 [:keyboardMaestro "Open/Reveal Finder - Recents"]]
+                 [:4 [:keyboardMaestro "Open/Reveal Finder"]]
+                 [:5 [:keyboardMaestro "Open/Reveal Finder - downloads"]]
          ;;  **** z-numbers-right hand ****
                  ; TODO: 6 avaialable
                  [:7 [:keyboardMaestro "Label Maker: Print Selected in Things"]]
@@ -612,29 +641,28 @@
                  [:tab :!Cm] ;; minimize window
                  [:t [:keyboardMaestro "open: Claude"]]
         ;;  **** z-q-right hand ****
-                 [:y :y]  ;; y   Dont make y anything bc it screws up typing the word crazy
+                 [:y [:z :y]]                    ;; fix for z layer typing fast (eg "lazy")
                  [:u [:keyboardMaestro "Firefox Global: Vimium Search Bookmarks History Tabs"]]
-                ;; i  NO z mode for i             ;; [:i [:z :i ]] ;; TODO: tried to get around it with this but it didnt work (i triggers accidently when typeing magaine)
-                ;; o  NO z mode for o
-                 ; [:o :o]          ;; so if i type too fast it just types o
+                 [:i [:z :i]]             ;; fix for z layer typing fast (eg "amazing)
+                 [:o [:z :o]]             ;; fix for z layer typing fast (eg "amazon)
                 ; TODO: p
-                ; TODO: open_bracket
-                ; TODO: close_bracket
+                 [:open_bracket :page_up]
+                 [:close_bracket :page_down]
                 ; TODO: backslash
 
 ;; ****  z-ASDFG-- ****
         ;;  **** z-a-left hand ****
-                ;;   TODO: make s,d, e,w,q work like left shift mode
+                ;;   TODO: make s,d, e,w,q work like left shift mode maybe
                 ; TODO: a
                 ; TODO: s
                 ; TODO: d
                 ; TODO: f
+                ; TODO: g
 
         ;;  **** z-a-right hand ****
-                ; TODO: g
-                ; TODO: h
-                 ; TODO: [:j  launch ghosty, then sessionx]
-                 [:k [:alfredWorkflow "search-bear" "com.drgrib.bear"]]
+                 [:h [:open "Finder"]]
+                 [:j [:open "Ghostty"]]   ;; focus last-used Ghostty window (launches if not running)
+                 [:k [:open "Firefox"]]   ;; focus last-used firefox window (launches if not running)
                  [:l :!!l]   ;; QUESTION: whats this do?
                  ; TODO: semicolon
                 ; TODO: quote
@@ -645,13 +673,15 @@
                  [:x [:!Tx] [:terminalapps :vscodeAndCursor :chrome]]  ; proxy for resize editors in vscode
                  ; [:x [:!Tx] [:vscodeAndCursor]]  ; proxy for resize editors in vscode
                  ; [:x [:!Tx] [:chrome]]  ; proxy for remove duplicates in chrome
+                 ; TODO: map to something more upiquitous
                  [:x [:!TSx] [:firefox]]  ; proxy for remove duplicates in chrome
-
-                 [:c :!Of8]    ;; change mode of superwhisper
+                 ; TODO:  c
                  [:!Cc :!STf8 [:vscodeAndCursor]]  ;; proxy for vscode extension  clear highlight word left hand
                  [:v :!Tv [:terminalapps :vscodeAndCursor]]     ;; enter block visual mode    TODO: why not working
                  ; [:v [:beep] [:!terminalapps :!vscodeAndCursor]]     ;; enter block visual mode    TODO: why not working
-                 [:spacebar :!OTSf9] ;; superwhisper push to talk
+                 ; [:spacebar :!OTSf9] ;; speech to text  push to talk (opensuperwhisper, handy, etc)   ;; TODO turn off now that i will use cmd+z
+                 [:spacebar [:beep]]    ;; training wheels
+                 ; TODO: spacebar available
          ;;  **** z-z-right hand *****
                  ;; b reserved for vim z mode
                  [:n [:keyboardMaestro "open: Finder - downloads"]]
@@ -673,7 +703,6 @@
                  ; [:f12 [:keyboardMaestro "VPN Toggle"]] ;; right hand
                 ;;  [:q :e]
                 ;;  [:w [:keyboardMaestro "vscode - utils: toggle file badge (keyboard)"] [:vscodeAndCursor]]
-                ;;  [:w [:keyboardMaestro "Firefox: show sidebar: Raindrop"] [:firefox]]
                 ;;  [:w :!CSa [:bear]]       ;; show table of contents left hand
                 ;; [:w [:keyboardMaestro "Open Gmail"]
                 ;;  [:w :!COy]   ;; proxy for firefox extension: "Switch to chatgpt tab"
@@ -692,12 +721,15 @@
 ;
 ]}  ;; end of z-mode
 
+; dense app launcher layer, replacing the old q-mode role
         {:des "grave-mode--"
          :rules [:grave-mode
 ;; ***  grave-FUNCTION-- keys - Low frequency  ***
          ;;  ****** grave-FUNCTION-left hand ******
+
          ;;  ****** grave-FUNCTION-right hand ******
-         ;; ***** grave-NUMBERS-- ********
+
+;; ***** grave-NUMBERS-- ********
          ;;  ****** grave-numbers-left hand ******
                  ; [:1 [:keyboardMaestro "Search selection in google"]]  ;; used to be: ;;  [:1 :!!1]
                 ;;  [:1 [:keyboardMaestro "Hide chatgpt"]]  ;; TODO works well. can put to something else
@@ -706,23 +738,59 @@
                  [:4 [:keyboardMaestro "Calendar: Create New Event"]]
                  [:5 [:keyboardMaestro "Dayone: New entry"]]
                  [:6 [:keyboardMaestro "Anki: Make new card from selected text"]]
+
          ;;  ****** grave-numbers-right hand ******
+                 [:7 [:open "Keyboard Maestro"]]
+                 [:8 [:openApps "Alfred Preferences"]]
+                 [:9 [:openFolder "/System/Library/PreferencePanes/Bluetooth.prefPane"]]
+                 [:0 [:openFolder "/System/Library/PreferencePanes/Sound.prefPane"]]
+                 [:hyphen [:keyboardMaestro "open: Finder - downloads"]]
+                 [:equal_sign [:keyboardMaestro "open: Slack, Teams and Whatsapp"]]
+
 ;; ****** grave-QUERTY-- *****
         ;;  ****** grave-q-left hand ******
-                 [:w [:keyboardMaestro "Things Quick Add"]]   ;; proxy global for add new item to things app
-                 [:r :!!n] ;; New bear note. Proxy for native bear shortcut
-                   ;; TODO e available
+                 ;; q  nothing. it cant be used bc its a layer key
+                 [:w [:keyboardMaestro "open: Ghostty"]]
+                 [:e [:keyboardMaestro "open: Ghostty"]]
+                 [:r [:keyboardMaestro "open: Firefox"]]
+                 ;; t available
+
         ;;  ****** grave-q-right hand ******
+                 [:u [:keyboardMaestro "Global 1password: search in app"]]
+                 [:i [:open "Calendar"]]
+                 [:o [:keyboardMaestro "open: Things"]]
+                 [:p [:keyboardMaestro "open: Dayone"]]
+                 [:open_bracket [:keyboardMaestro "open: ChatGPT"]]
+                 [:close_bracket [:open "Activity Monitor"]]
+                 [:backslash [:keyboardMaestro "Karabiner Event Viewer: Open app"]]
+
 ;; ****  grave-ASDFG-- ****
         ;;  ****** grave-a-left hand ******
+                 [:a [:openApps "Alfred Preferences"]]
+                 [:s [:keyboardMaestro "open: Slack, Teams and Whatsapp"]]
+                 [:d [:keyboardMaestro "open: Dayone"]]
+                 [:f [:keyboardMaestro "open: Things"]]
+
         ;;  ****** grave-a-right hand ******
-                 [:k :!!n] ;; New bear note. Proxy for native bear shortcut
-                 [:spacebar [:keyboardMaestro "Hide chatgpt"]]  ;; used to be: ;;  [:1 :!!1]
+                 [:g [:open "Calendar"]]
+                 [:h [:keyboardMaestro "open: Finder - downloads"]]
+                 [:j [:open "Keyboard Maestro"]]
+                 [:k [:open "Karabiner-Elements"]]
+                 [:l [:open "Activity Monitor"]]
+
 ;; ****  grave-ZXCVB--****
         ;;  ****** grave-z-left hand ******
-                 [:d [:alfredWorkflow "new-bear-note" "com.drgrib.bear"]]
-                 [:c [:alfredWorkflow "rknightuk.agenda.create-event" "com.rknightuk.agenda"]]
+                 [:x [:keyboardMaestro "Global 1password: search in app"]]
+                 [:c [:keyboardMaestro "open: Claude"]]
+                 [:v [:keyboardMaestro "open: ChatGPT"]]
+
           ;;  ****** grave-z-right hand ******
+                 [:n [:keyboardMaestro "open: Finder - downloads"]]
+                 [:m [:keyboardMaestro "open: Slack, Teams and Whatsapp"]]
+                 [:comma [:keyboardMaestro "open: Ghostty"]]
+                 [:period [:keyboardMaestro "open: Firefox"]]
+                 [:slash [:keyboardMaestro "open: Things"]]
+
                 ;;;;;
                  ]}
 
@@ -747,22 +815,20 @@
                 ;; q  NOTHING!! nothing bc its a layer
                  [:w :grave_accent_and_tilde] ; `
                  [:e :exclaim] ; !
-                ;;  [:t  NOTHING!!]  ;; nothing for comma mode for "t" bc it accidentally triggers when typing contractions (ie can't, won't, etc)
-                 [:t :t]
-                ;; r NOTHING!!!!!  it interfers with contractions like we're
-                 [:r :r]
+                 [:t [:quote :t]]             ;;  fix for when typing fast words like "don't"
+                 [:r [:quote :r]]             ;;  fix for when typing fast words like "you're"
         ;; ****  quote-ASDFG-- ****
                  [:a :hash]
-                 [:s :!S8]
-                 [:d :!Shyphen]
+                 [:s [:quote :s]]
+                 [:d :!Sequal_sign]
                  [:f :!S8]
-                 [:g :hyphen]
+                 ;; g  TODO:available
         ;; ***** quote-ZXCVB-- *********
                  ;; TODO: change this to some other key bc z is now a layer
                 ;; z nothing bc its a layer
                  [:x :!Sgrave_accent_and_tilde]       ; ~    capitalize letter in vim
                  [:c :percent]     ; %
-                 [:v :!Sequal_sign]  ;; +
+                 [:v [:quote :v]]             ;;  fix for when typing fast words like "I've, you've, might've"
                  [:b :dollar]       ; $
               ;; TODO this almost works to make comma not repeat. but its
               ;; sending comma even when i press it with another key from
@@ -832,8 +898,8 @@
          ;;  ****** hyper-a-left hand ******
          ;; a defined inn below hyper section
                  [:s :!Ts]
-                 [:f :!Tf [:terminalapps]]
                  ; TODO: [:d here?
+                 [:f :return_or_enter [:terminalapps]]
 
                  [:!Cs :!Sw [:chrome :firefox :!terminalapps]]  ;; chrome-extension-- highlighty
                  [:f [:keyboardMaestro "Dayone - filter"] [:dayone :!terminalapps]]
@@ -846,7 +912,7 @@
                 ;; for vscode map to control + key  TODO: check if i neeed this. i want to use it for global search word under cursor
 
          ;;  ****** hyper-a-right hand ******
-                 [:return_or_enter :!Treturn_or_enter [:terminalapps]] 
+                 [:return_or_enter :!Treturn_or_enter [:terminalapps]]
                 ;;  [:h :!TOh]
                 ;;  [:j :!TOj]
                 ;;  [:k :!TOk]
@@ -864,7 +930,7 @@
                  ; [:x :!TOx]    ;; alfred snippets
                 ;;  [:y :!TOy]  ;; mapped to yank
                 ;;  [:z :!TOz]    ;; I think i cant use this for anything bc its a simlayer
-                ;;  TODO: [:z :!Tz [:terminalapps]]  ;; missing — Ctrl+Z (suspend process) not covered in terminals
+                 ;; [:z :!Tz [:terminalapps]]  ;; missing — Ctrl+Z (suspend process) not covered in terminals
                  [:v :!Tv [:terminalapps]]
                  [:v :!TOv [:!terminalapps]]        ;; proxy for vscode or possibly others
                  [:spacebar :!Tspacebar]
@@ -902,6 +968,22 @@
          :rules [:hyper-mode
                  [:a :!Ta [:terminalapps]]
                  [:a :!TOa [:!terminalapps]]
+
+                ;; hyper + option + hjkl -> ctrl+option+hjkl  (tmux pane RESIZE)
+                ;; Makes the chord order-independent. Pressing option BEFORE
+                ;; caps_lock already works: the layer rule can't match with an
+                ;; extra modifier held, so caps_lock falls through to the
+                ;; "caps_lock-- hyper-mode-- modifier" rule and emits
+                ;; control+option itself. Pressing caps_lock FIRST sets
+                ;; hyper-mode instead, caps_lock emits nothing, and h would
+                ;; otherwise reach Ghostty as a bare option+h. These rules cover
+                ;; that second path so both orders land on control+option+hjkl.
+                ;; The plain [:h ...] rules below compile without :optional
+                ;; modifiers, so they never match while option is held.
+                 [:!Oh :!TOh [:terminalapps]]
+                 [:!Oj :!TOj [:terminalapps]]
+                 [:!Ok :!TOk [:terminalapps]]
+                 [:!Ol :!TOl [:terminalapps]]
 
                 ; TODO: add beep training wheels for these if theyre the app is not :terminalapps
                 ; use j as an example:
@@ -963,17 +1045,16 @@
                  [:period [:beep] [:!terminalapps]]
                  [:!Cperiod [:beep]]   ;; training wheels
 
-                ; when multiple rules match the same key, the first matching ;  rule wins. The more specific rule should come first:
-                 [:x [:beep] [:!terminalapps]]  ;; Training Wheels
-                 [:x :!Tx [:terminalapps]]
+                ; NOTE: when multiple rules match the same key, the first
+                ; matching  rule wins.  The more specific rule should come
+                ; first:
+                 [:x [:beep] [:!terminalapps]]  ;; Training Wheels - beep in non-terminal apps
+                 [:x :!Tx [:terminalapps]]      ;; Normal behavior - !Tx in terminal apps
 
-; when multiple rules match the same key, the first matching  rule wins.  The more specific rule should come first:
- ;  [:x [:beep] [:!terminalapps]]  ;; Training Wheels - beep in non-terminal apps
- ;  [:x :!Tx [:terminalapps]]      ;; Normal behavior - !Tx in terminal apps
                  [:d :!Td [:obsidian]]
                  [:d :!Td [:terminalapps]]
                  [:d [:escape :spacebar] [:firefox]]
-                 [:d [:repeatKey "20" "125"]] ;; ;; key code 125 = down arrow
+                 [:d [:repeatKey "20" "125"]]          ;; ;; key code 125 = down arrow
 
                  [:p :!Tp [:terminalapps]]
                  [:p [:up_arrow] [:!terminalapps]]
@@ -997,6 +1078,9 @@
                  ]}
 
 ;; *********************** end hyper-mode-- *******************************
+
+        {:des "control+f-- send enter in terminal apps--"
+         :rules [[:!Tf :return_or_enter [:terminalapps]]]}
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ; End Modes
@@ -1153,7 +1237,10 @@
                  ]}
 
         {:des "photos-- (apple photos)"
-         :rules [;
+         :rules [:photos                      ;; 2026_08_24: was a bare `;` comment here, so the :photos condition
+                                              ;; was never applied and these two rules ran GLOBALLY -- every
+                                              ;; left_command / left_option press went through 200ms tap
+                                              ;; disambiguation, and tapping either alone sent cmd+F in any app.
                  [:left_command :left_command nil {:alone :!Cf}]
                  [:left_option :left_option nil {:alone :!Cf}]
                 ;;;;;;
@@ -1166,7 +1253,7 @@
                  ; [:right_command :right_command nil {:alone [:!Tspacebar]}]  ;; tmux prefix
                  [:right_option :right_option nil {:alone [:!Ts :w]}]   ;; tmux windowizer? session picker?
                  ; [:!Creturn_or_enter :return_or_enter] ;; make cmd + enter send 'enter'
-                 [:!Treturn_or_enter :!Treturn_or_enter] 
+                 [:!Treturn_or_enter :!Treturn_or_enter]
                  [:return_or_enter :return_or_enter] ;; make  enter send 'enter'
                  [:!Copen_bracket :!Copen_bracket]
                  [:!Cclose_bracket :!Cclose_bracket]
@@ -1178,6 +1265,14 @@
                  [:!Cj :!STOj]
                  [:!Ck :!STOk]
                  [:!Cl :!STOl]
+                ; NOTE: deactivated 2026_08_01
+                ;; Second tmux prefix, on the thumb. Ghostty-scoped, so Alfred keeps
+                ;; cmd+space in every other app. Emits a REAL ctrl+space key event,
+                ;; which Ghostty encodes exactly like a physical ctrl+space — so tmux
+                ;; needs no config change and its one `prefix2` slot stays free.
+                ;; Left cmd only: right cmd+space still runs the Alfred fzf workflow.
+                ;; See ~/.config/docs/adrs/014-tmux-prefix-via-karabiner-app-scoped-remap.md
+                 ; [:!Cspacebar :!Tspacebar]
                  ;;;;;
                  ]}
 
@@ -1367,6 +1462,13 @@
                 ;;;;;;
                  ]}
 
+        {:des "contacts--"
+         :rules [:contacts
+                 [:left_option :left_option nil {:alone :!Cf}]
+                 [:left_command :left_command nil {:alone :!Cf}]
+                ;;;;;;
+                 ]}
+
         {:des "firefox--"
          :priority 10
          :rules [:firefox
@@ -1376,6 +1478,8 @@
                  [:left_command :left_command nil {:alone :!Cf}]  ;; Native on-page search
                  [:right_option :right_option nil {:alone :!St}]   ;; Firefox also supports searching with Ctrl+O.
                  [:!Cf :!Cy]  ;; left hand new tab
+
+                 [:!CSe :!Creturn_or_enter]
 
                  [:!Sescape [:keyboardMaestro "Dismiss Notifications"]]
 
@@ -1390,11 +1494,14 @@
                  [:!CSclose_bracket :!Opage_up]      ;; Move tab left (Ctrl + Shift + Page Up in Firefox) extension proxy
 
                  [:!C2 :!C9]                           ;; go to end tab
+                 [:!C3 :!CSt]     ;;  Reopen last closed tab (Cmd + Shift + T in Firefox)
                  [:!Ccomma :!TStab]             ;; show/search all tabs
-                 [:!Ca :!CSh] ;; toggle left sidebar
+                 ; [:!Ca :!CSh] ;; toggle left sidebar (history)
+                 [:!Ca :!Cb] ;; toggle left sidebar (bookmarks)
                  [:!Co               :!Ttab]                     ;; left hand mapping to go back in time
                  [:!Ci               :!TStab]                     ;; left hand mapping to go forward in time
                  [:!Tgrave_accent_and_tilde :!TStab]                     ;; left hand mapping to go forward in time
+                 [:!Cw :!CSw]                ;; force close pinned tabs?
                 ;;  right hand
                  [:!Qk  :!Opage_down]  ;; move tab
                  [:!Ql :!Opage_up]     ;; move tab
@@ -1407,13 +1514,14 @@
                  [:!Cperiod :!Cl]  ;;  focus url bar
                  [:!Cg :!CSg]     ;; Focus previous search resultresult (Cmd + Shift + G in Firefox) (not susre what this is)
                  [:!Cb :!Cg]          ;; Focus next search result (Cmd + G in Firefox)
-                 [:!Cd :!CSt]     ;;  Reopen last closed tab (Cmd + Shift + T in Firefox)
+
+                 ; TODO: make !Cd = same (bookmarking in firefox)
+                 [:!Cd :!Cd]      ;; Default Bookmarking shortcut
+
                  [:f10 :!COi]         ;; Open Developer Tools (Cmd + Opt + I in Firefox)
                 ;; ;;  " ************************** extensions ***************************
                  [:!Sz [:keyboardMaestro "firefox: send tab to next window"]]   ;; move tab to new window. vimium extension.
                  [:!Sx [:keyboardMaestro "firefox: send tab to new window"]]   ;; move tab to new window. vimium extension.
-                 [:!C4 :!ST8]         ;; proxy to active  raindrop extension add new
-                 [:!C5 [:keyboardMaestro "Add to raindrop - unread collection"]]         ;; proxy to active  raindrop extension add new
                 ;;  onetab firefox-extension
                  [:!Ce :!ST7]        ;; onetab firefox-extension--   proxy for send tab to onetab
                  [:!CSn [:!Cl :!Cc :!CSp :!Cv]]        ;; new ingonito window
@@ -1447,7 +1555,7 @@
                  [:right_command :right_command nil {:alone :!TOf}]   ;;  This is overriding homwrow below
                  [:!Copen_bracket :!COleft_arrow]   ;; changing  tabs left and right
                  [:!Cclose_bracket :!COright_arrow]   ;; changing  tabs left and right
-                 [:escape [:beep]] ;; TODO training wheels
+                ;;  [:escape [:beep]] ;; disabled 2026_09_10: training wheels, was swallowing Escape in Chrome
                  [:!Ce :!TSo]               ;; proxy for onetab send tab to onetab
                  [:!Cf :!Ct]           ;; cmd + y new tab
                  [:!Cl :!Cperiod]
@@ -1488,7 +1596,6 @@
                  [:!Ow [:escape :!Sz]]  ;; works fine
                  [:!Sz [:escape :!Sz]]
                  [:!Sx [:escape :!Sx]]
-                 [:!Cf :addSiteToRaindrop]   ;; proxy for chrome extension
                  [:!Cperiod :!Cl]      ;; focus url bar
                  [:!CSp :!Cp]      ;; print
                  [:!Cp [:beep]]      ;; nothing
@@ -1537,6 +1644,14 @@
                 ;;;;;
                  ]}
 
+        {:des "Reminders--"
+         :rules [:reminders
+                ;;  right command reserved for homerow
+                 [:left_command :left_command nil {:alone :!Cf}]
+                 [:left_option :left_option nil {:alone :!Cf}]
+                 [:!Cperiod :!CSc]       ;; mark item complete
+                ;;;;;
+                 ]}
         {:des "bettermouse--"
          :rules [:bettermouse;
                  [:!Copen_bracket :!Copen_bracket]
@@ -1652,6 +1767,27 @@
                 ;;;;;
                  ]}
 
+
+        {:des "claude--"
+         :rules [:claude
+                 [:left_command :left_command nil {:alone :!Cf}]
+                 [:left_option :left_option nil {:alone :!CSf}]
+                 [:return_or_enter :!Sreturn_or_enter]
+                 [:!Creturn_or_enter :return_or_enter]
+
+                 [:!Ca :!Cb]         ;; toggle left sidebar
+                 ; QUESTION: what does cmd + d do?
+                 [:!Cg :!CSg]     ;; focus previous search  result
+                 [:!Cb :!Cg]     ;; focus next search  result
+                 [:!Ca [:keyboardMaestro "Toggle side bar"]]         ;; toggle sidebar file view
+                ;;  // TODO: map these in keyboard maestro to trigger on :!COSf8 ?
+                ;;  [:escape [:keyboardMaestro "Chatgpt: Clear search"]]
+                ;;  [:escape [:keyboardMaestro "Focus input box"]]
+                ;;;;;
+                 ]}
+
+
+
         {:des "bear--"
          :rules [:bear
                  [:left_option :left_option nil {:alone :!CSf}]
@@ -1693,8 +1829,22 @@
 ;; (ie cmd + b for chrome needs to be overridden by capslock + cmd + b from hyper mode)
 
 ;; **** global--section-- (low group of globals) start (upper things override)  ********************************************************************
-                ;; make micdrop key f12 and dimming something else for when i switch to 75% keyboard
-                ;; TODO: maybe i should explicitly define that as only for full shize keyboards?
+                ;; These are global on purpose. Both external keyboards emit f13/f14/f15 from the same
+                ;; physical top-right cluster, so one set of rules serves both:
+                ;;   wasd code   -- PrtSc / ScrLk / Pause send f13 / f14 / f15 natively
+                ;;   nuphy node75 -- its PRT / SCR / PA keys are assigned to F13 / F14 / F15 in NuPhyIO
+                ;;                   (Key Bindings -> Special palette, which has F13 through F24)
+                ;; Briefly scoped to :kb-code on 2026_08_23 because the node75 in Mac mode emitted f14 from
+                ;; its F1 key, so [:f14 :f15] was inverting its brightness. That was fixed in firmware instead
+                ;; (F1 now emits a real f1), so the scoping was removed again on 2026_08_24. See ADR 017.
+                ;; The macbook internal keyboard has no f13/f14/f15 keys, so global costs it nothing.
+
+        {:des "speech to text - cmd+z"
+         :rules [;
+                 [:!Cz :!OTSf9]
+                ;;;;
+                 ]}
+
         {:des   "Dimming - replace f13,f14,f15 -> f14, f15, f13   - global--"
          :rules [;
                 ;;  TODO: revisist. used to work well. on external keyboard.
@@ -1702,14 +1852,13 @@
                 ;;   could just leave f13 and f14 alone?
                  [:f13 :f14]
                  [:f14 :f15]
-                 [:!Qf11 :f14]     ;; right command brightness down.
-                 [:!Qf12 :f15]     ;; right command brightness up.
-                ;;  mic drop on 75% keyboard
                 ;; so i can us this top outer key for mic drop when using fullsize keyboard, but then use regular f12 when just using laptop keyboard.  mic drop shortcut key is f12.
                  [:f15 :f12]  ;; f12 triggers macro:  "f12 Mic Drop (toggle mute)"; Mappings done directly in keyboard maestro seem a DECENT BIT FASTER. TODO: consider using this for other keys.
                  [:!SOf13 :!SOf14]   ;; idk what this is for. maybe fine grained dimming control?
                  [:!SOf14 :!SOf15]   ;; idk what this is for. maybe fine grained dimming control?
-                ;; for fullsize keyboards, make f11 send f13 (f13 is the key for micdrop)
+                ;; alternative brightness on any keyboard, including ones with no f13/f14/f15 keys at all
+                 [:!Qf11 :f14]     ;; right command brightness down.
+                 [:!Qf12 :f15]     ;; right command brightness up.
                 ;;;;;
                  ]}
 
@@ -1723,22 +1872,30 @@
         ;; TODO: parentheses works great but going to try using for soemthing else
         {:des "space cadet shift   global--"
          :rules [;
-                 [:left_shift :left_shift nil {:alone :hyphen}]
-                 [:right_shift :right_shift nil {:alone :!Shyphen}]
+                 [:left_shift :left_shift nil {:alone :!Shyphen}]
+                 [:right_shift :right_shift nil {:alone :hyphen}]
                 ;;;;;
                  ]}
 
-        {:des "right command option searches global--"
+        {:des "left_option global--"
          :rules [;
-                ;;  [:!Qspacebar [:alfredWorkflow "fzf-files-and-directories"  "com.yohasebe.fzf-alfred-workflow" "/ "]]   ;; good example-- of passing in a parameter to the workflow
-                 [:!Ospacebar [:!TCOS9]]  ;;  chatgpt chat   ;; left option
-                 ; [:!Ospacebar :caps_lock]  ;;  claude voice chat
-                 [:!Qspacebar [:alfredWorkflow "fzf-files-and-directories"  "com.yohasebe.fzf-alfred-workflow" ""]]   ;; right command..  TODO: make something else  ;; good example-- of passing in a parameter to the workflow
-                 [:!Espacebar [:!TCOS8]]  ;; right option search things    ;; right option
-                 ;; TODO: assign something to right control + spacebar
+                 [:!Ospacebar [:!TCOS8]]             ;; TODO: available. (ideas: chatgpt or claude voice? )
                 ;;;;
                  ]}
 
+        {:des "right_command global--"
+         :rules [;
+                 ;; [:!Qspacebar [:alfredWorkflow "fzf-files-and-directories"  "com.yohasebe.fzf-alfred-workflow" ""]]   ;; good example-- of passing in a parameter to the workflow
+                 [:!Qspacebar :!Qspacebar]      ;; redundant just to be clear
+                ;;;;
+                 ]}
+
+        {:des "right_option global--"
+         :rules [;
+                 ;; [:!Espacebar [:keyboardMaestro "Things: Global search todos"]]
+                 [:!Espacebar [:!TCOS9]]              ;; TODO: available  (ideas: chatgpt or claude voice? )
+                ;;;;
+                 ]}
         {:des "homerow mode global--"          ;; working well it seems. vscode isnt affected bc its defined higher up
          :rules [;
                  [:right_command :right_command nil {:alone :!TOf}]   ;;  TODO: decide how want to use homerow
@@ -1891,7 +2048,7 @@
                  [:!Rspacebar :!T9]    ;; proxy for alfred menu search
                  [:!Ry [:beep]]
                  [:!Ru [:beep]]
-                 [:!Ri [:beep]]
+                 ; :!Ri allow temporarily bc left shift key is broken
                  [:!Ro [:beep]]
                  [:!Rp [:beep]]
                  [:!Rh [:beep]]
@@ -1930,12 +2087,6 @@
                   nil
                   {:alone :q}]
                  ;;;;;
-                 ]}
-
-        {:des "escape training wheels global--"
-         :rules [;
-                 [:escape :!OCSf8] ;; for superwhisper
-                ;;;;;
                  ]}
 
         {:des "full screen global--"
